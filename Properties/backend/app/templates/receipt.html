@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Fee Payment Receipt</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #1e3a5f;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .school-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e3a5f;
+            margin: 0;
+        }
+        .school-info {
+            font-size: 11px;
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+        .receipt-title {
+            text-align: center;
+            font-size: 16px;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+        }
+        .meta-table {
+            width: 100%;
+            margin-bottom: 30px;
+            font-size: 13px;
+        }
+        .meta-table td {
+            padding: 4px 0;
+        }
+        .meta-label {
+            font-weight: bold;
+            color: #555;
+            width: 120px;
+        }
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+            font-size: 13px;
+        }
+        .item-table th {
+            background-color: #1e3a5f;
+            color: #fff;
+            text-align: left;
+            padding: 10px;
+            font-weight: bold;
+        }
+        .item-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .total-row td {
+            border-top: 2px solid #1e3a5f;
+            font-weight: bold;
+            font-size: 14px;
+            padding-top: 15px;
+        }
+        .footer {
+            margin-top: 50px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+        }
+        .signature-section {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+        .signature-box {
+            text-align: center;
+            border-top: 1px solid #333;
+            width: 180px;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="school-name">SIDDARDHA HIGH SCHOOL</div>
+        <div class="school-info">CBSE Affiliation No. 1234567 · New Delhi, India · support@siddardha.edu</div>
+    </div>
+
+    <div class="receipt-title">FEE PAYMENT RECEIPT</div>
+
+    <table class="meta-table">
+        <tr>
+            <td class="meta-label">Receipt Number:</td>
+            <td><strong>{{ receipt_number }}</strong></td>
+            <td class="meta-label">Payment Date:</td>
+            <td>{{ payment_date }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Student Name:</td>
+            <td>{{ student_name }}</td>
+            <td class="meta-label">Admission No:</td>
+            <td>{{ admission_number }}</td>
+        </tr>
+    </table>
+
+    <table class="item-table">
+        <thead>
+            <tr>
+                <th>Description / Fee Category</th>
+                <th style="text-align: right;">Amount Paid (INR)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ fee_category }}</td>
+                <td style="text-align: right;">{{ amount_paid }}</td>
+            </tr>
+            <tr class="total-row">
+                <td>TOTAL PAID</td>
+                <td style="text-align: right;">₹{{ amount_paid }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="font-size: 11px; color: #555; font-style: italic;">
+        Received with thanks sum of Rupees {{ amount_in_words }} only.
+    </div>
+
+    <table style="width: 100%; margin-top: 80px; font-size: 12px;">
+        <tr>
+            <td style="width: 50%;">
+                <div style="width: 150px; border-top: 1px solid #333; text-align: center; padding-top: 5px;">
+                    Parent's Signature
+                </div>
+            </td>
+            <td style="width: 50%; text-align: right;">
+                <div style="width: 150px; border-top: 1px solid #333; text-align: center; padding-top: 5px; margin-left: auto;">
+                    Authorized Signatory
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        This is a computer-generated receipt and does not require a physical signature unless printed.
+    </div>
+
+</body>
+</html>

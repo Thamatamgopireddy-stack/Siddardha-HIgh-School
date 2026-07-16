@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: siddardha
+      POSTGRES_USER: siddardha_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-siddardha_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siddardha_user -d siddardha"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_pass}
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_pass}", "ping"]
+      interval: 10s
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.example
+    environment:
+      DATABASE_URL: postgresql+asyncpg://siddardha_user:${DB_PASSWORD:-siddardha_pass}@db:5432/siddardha
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_pass}@redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
