@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: siddardha-high-school
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: "cd Properties/frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt"
+    startCommand: "cd Properties/backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./educore.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SCHOOL_NAME
+        value: "Siddardha High School"
