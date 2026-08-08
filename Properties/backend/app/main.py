@@ -204,9 +204,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 possible_dist_dirs = [
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "Properties", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "frontend", "dist")),
     os.path.abspath(os.path.join(os.getcwd(), "frontend", "dist")),
     os.path.abspath(os.path.join(os.getcwd(), "..", "frontend", "dist")),
     os.path.abspath(os.path.join(os.getcwd(), "Properties", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.getcwd(), "..", "Properties", "frontend", "dist")),
+    "/opt/render/project/src/Properties/frontend/dist",
 ]
 FRONTEND_DIST_DIR = next((d for d in possible_dist_dirs if os.path.exists(d)), possible_dist_dirs[0])
 
