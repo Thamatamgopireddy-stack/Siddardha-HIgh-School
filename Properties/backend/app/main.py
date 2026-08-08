@@ -29,19 +29,23 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with AsyncSessionLocal() as db:
-        await seed_database(db)
-        await load_role_permissions(db)
-        await db.commit()
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with AsyncSessionLocal() as db:
+            await seed_database(db)
+            await load_role_permissions(db)
+            await db.commit()
+    except Exception as e:
+        logger.error(f"Error during app startup initialization: {e}", exc_info=True)
     yield
     await engine.dispose()
 
 
 app = FastAPI(title="Siddardha High School", version=settings.APP_VERSION, lifespan=lifespan)
-os.makedirs("app/static", exist_ok=True)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "static"))
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
