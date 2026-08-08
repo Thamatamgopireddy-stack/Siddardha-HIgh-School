@@ -30,6 +30,7 @@ class AttendanceRecordOut(BaseModel):
     academic_year_id: str | UUID | None = None
     date: date
     status: str | AttendanceStatus
+    remarks: str | None = None
     marked_by: str | UUID | None = None
 
 

@@ -157,13 +157,17 @@ async def seed_database(db: AsyncSession) -> None:
 
         # 6. Seed Attendance Logs for Students
         logger.info("Seeding sample attendance records...")
+        admin_user = (await db.execute(select(User).where(User.email == "admin@school.edu"))).scalar_one_or_none()
+        admin_id = admin_user.id if admin_user else None
         for st in seeded_student_objs[:10]:
             db.add(Attendance(
                 student_id=st.id,
                 section_id=st.section_id,
+                academic_year_id=year.id,
                 date=date.today(),
-                status="present",
-                remarks="Present in morning assembly"
+                status=AttendanceStatus.PRESENT,
+                remarks="Present in morning assembly",
+                marked_by=admin_id,
             ))
         await db.flush()
 

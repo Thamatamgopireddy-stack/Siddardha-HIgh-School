@@ -2,6 +2,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+# pyrefly: ignore [missing-import]
 import bcrypt
 from jose import JWTError, jwt
 
@@ -50,7 +51,6 @@ def create_access_token(subject: str, extra: dict[str, Any] | None = None) -> st
 def create_refresh_token(subject: str) -> str:
     """Generate a JWT refresh token for a user subject."""
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-
     payload: dict[str, Any] = {"sub": str(subject), "exp": expire, "type": "refresh"}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 

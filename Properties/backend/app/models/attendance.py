@@ -17,4 +17,5 @@ class Attendance(TimestampMixin, SoftDeleteMixin, Base):
     academic_year_id: Mapped[str] = mapped_column(String(36), ForeignKey("academic_years.id"))
     date: Mapped[date] = mapped_column(Date, index=True)
     status: Mapped[AttendanceStatus] = mapped_column(Enum(AttendanceStatus, name="attendance_status"))
+    remarks: Mapped[str | None] = mapped_column(String(255), nullable=True)
     marked_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
