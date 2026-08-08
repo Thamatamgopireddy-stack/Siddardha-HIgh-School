@@ -1,11 +1,12 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.defaultInterpreterPath": "c:/Siddardha HIgh School/Properties/.venv/Scripts/python.exe",
+  "python.interpreterPath": "c:/Siddardha HIgh School/Properties/.venv/Scripts/python.exe",
   "python.analysis.extraPaths": [
-    "${workspaceFolder}/backend",
-    "${workspaceFolder}/backend/app"
+    "c:/Siddardha HIgh School/Properties/backend",
+    "c:/Siddardha HIgh School/Properties/backend/app"
   ],
   "python.autoComplete.extraPaths": [
-    "${workspaceFolder}/backend",
-    "${workspaceFolder}/backend/app"
+    "c:/Siddardha HIgh School/Properties/backend",
+    "c:/Siddardha HIgh School/Properties/backend/app"
   ]
 }
