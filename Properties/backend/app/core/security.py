@@ -15,6 +15,7 @@ PASSWORD_PATTERN = re.compile(
 
 
 def verify_password(plain: str, hashed: str) -> bool:
+    """Verify a plain text password against a hashed password."""
     try:
         if not plain or not hashed:
             return False
@@ -26,28 +27,44 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def hash_password(password: str) -> str:
+    """Hash a password safely using native bcrypt with 72-byte truncation."""
     pwd_bytes = password.encode("utf-8")[:72]
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
 
 def validate_password_strength(password: str) -> bool:
+    """Validate password meets minimum complexity requirements."""
     return bool(PASSWORD_PATTERN.match(password))
 
 
 def create_access_token(subject: str, extra: dict[str, Any] | None = None) -> str:
+    """Generate a JWT access token for a user subject."""
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": subject, "exp": expire, "type": "access"}
+    payload: dict[str, Any] = {"sub": str(subject), "exp": expire, "type": "access"}
     if extra:
         payload.update(extra)
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(subject: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    payload = {"sub": subject, "exp": expire, "type": "refresh"}
+    """Generate a JWT refresh token for a user subject."""
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXRESH_DAYS if hasattr(settings, "REFRESH_TOKEN_EXRESH_DAYS") else settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    payload: dict[str, Any] = {"sub": str(subject), "exp": expire, "type": "refresh"}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> dict[str, Any]:
+    """Decode and validate a JWT token."""
     return jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+
+
+__all__ = [
+    "JWTError",
+    "verify_password",
+    "hash_password",
+    "validate_password_strength",
+    "create_access_token",
+    "create_refresh_token",
+    "decode_token",
+]
