@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -27,6 +27,113 @@ interface DataTableProps<TData> {
   selectable?: boolean
   onSelectionChange?: (selectedRows: TData[]) => void
   rowActions?: (row: TData) => React.ReactNode
+}
+
+function RowActionMenu({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [coords, setCoords] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const right = Math.max(8, window.innerWidth - rect.right)
+
+      if (spaceBelow < 220 && rect.top > 200) {
+        setCoords({ bottom: window.innerHeight - rect.top + 6, right })
+      } else {
+        setCoords({ top: rect.bottom + 6, right })
+      }
+      setIsOpen(true)
+    } else {
+      setIsOpen(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    function handleScrollOrResize() {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        const spaceBelow = window.innerHeight - rect.bottom
+        const right = Math.max(8, window.innerWidth - rect.right)
+
+        if (spaceBelow < 220 && rect.top > 200) {
+          setCoords({ bottom: window.innerHeight - rect.top + 6, right })
+        } else {
+          setCoords({ top: rect.bottom + 6, right })
+        }
+      }
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false)
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  return (
+    <div className="relative flex justify-end">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={toggleMenu}
+        className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        title="Actions"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {isOpen && (
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: coords.top !== undefined ? `${coords.top}px` : 'auto',
+            bottom: coords.bottom !== undefined ? `${coords.bottom}px` : 'auto',
+            right: `${coords.right}px`,
+          }}
+          className="z-[9999] min-w-[12rem] rounded-lg border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in-50 zoom-in-95"
+          onClick={(e) => {
+            // Allow child button/link action to trigger first before closing
+            const target = e.target as HTMLElement
+            if (target.closest('a') || target.closest('button')) {
+              setTimeout(() => setIsOpen(false), 80)
+            }
+          }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function DataTable<TData>({
@@ -80,16 +187,9 @@ export function DataTable<TData>({
       cols.push({
         id: 'actions',
         cell: ({ row }) => (
-          <div className="relative flex justify-end">
-            <div className="group relative">
-              <button className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">
-                <MoreVertical className="h-4 w-4 text-slate-500" />
-              </button>
-              <div className="absolute right-0 top-full z-10 mt-1 hidden w-48 rounded-lg border border-slate-200 bg-white p-1 shadow-md group-hover:block dark:border-slate-800 dark:bg-slate-900">
-                {rowActions(row.original)}
-              </div>
-            </div>
-          </div>
+          <RowActionMenu>
+            {rowActions(row.original)}
+          </RowActionMenu>
         ),
       })
     }
@@ -143,7 +243,7 @@ export function DataTable<TData>({
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-4 py-3.5 first:pl-6 last:pr-6">
+                    <th key={header.id} className="px-3.5 sm:px-4 py-3.5 first:pl-4 sm:first:pl-6 last:pr-4 sm:last:pr-6 whitespace-nowrap">
                       {header.isPlaceholder ? null : (
                         <div
                           className={cn(
@@ -168,7 +268,7 @@ export function DataTable<TData>({
                 Array.from({ length: 5 }).map((_, rIdx) => (
                   <tr key={rIdx} className="border-t border-slate-100 dark:border-slate-800">
                     {tableColumns.map((_, cIdx) => (
-                      <td key={cIdx} className="px-4 py-4 first:pl-6 last:pr-6">
+                      <td key={cIdx} className="px-3.5 sm:px-4 py-4 first:pl-4 sm:first:pl-6 last:pr-4 sm:last:pr-6">
                         <div className="h-4 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
                       </td>
                     ))}
@@ -191,7 +291,7 @@ export function DataTable<TData>({
                     className="border-t border-slate-100 hover:bg-slate-50/50 dark:border-slate-800 dark:hover:bg-slate-800/30"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3.5 first:pl-6 last:pr-6">
+                      <td key={cell.id} className="px-3.5 sm:px-4 py-3.5 first:pl-4 sm:first:pl-6 last:pr-4 sm:last:pr-6 whitespace-nowrap">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -203,8 +303,8 @@ export function DataTable<TData>({
         </div>
 
         {pagination && onPageChange && (
-          <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4 dark:border-slate-800">
-            <div className="flex items-center gap-4 text-xs text-slate-500">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-200 px-4 py-3.5 sm:px-6 dark:border-slate-800">
+            <div className="flex flex-wrap items-center justify-between sm:justify-start gap-3 text-xs text-slate-500">
               <span>
                 Showing{' '}
                 <span className="font-medium text-slate-800 dark:text-slate-200">
@@ -228,7 +328,7 @@ export function DataTable<TData>({
                     onChange={(e) => onLimitChange(parseInt(e.target.value))}
                     className="rounded border border-slate-300 bg-white px-2 py-0.5 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
                   >
-                    {[10, 20, 50, 100].map((size) => (
+                    {[10, 20, 50, 100, 250, 500].map((size) => (
                       <option key={size} value={size}>
                         {size}
                       </option>
@@ -238,7 +338,7 @@ export function DataTable<TData>({
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-2">
               <button
                 onClick={() => onPageChange(pagination.page - 1)}
                 disabled={pagination.page <= 1}

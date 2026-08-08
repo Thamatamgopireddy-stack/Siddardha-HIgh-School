@@ -4,36 +4,7 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { StatCard } from '@/components/shared/StatCard'
 import { useAuthStore } from '@/store'
-import { useAIChat } from '@/api/hooks'
-
-const enrollmentData = [
-  { month: 'Aug', count: 820 }, { month: 'Sep', count: 845 }, { month: 'Oct', count: 860 },
-  { month: 'Nov', count: 872 }, { month: 'Dec', count: 878 }, { month: 'Jan', count: 885 },
-  { month: 'Feb', count: 890 }, { month: 'Mar', count: 895 }, { month: 'Apr', count: 900 },
-  { month: 'May', count: 905 }, { month: 'Jun', count: 908 }, { month: 'Jul', count: 912 },
-]
-
-const attendanceData = [
-  { name: 'Present', value: 842, color: '#16a34a' },
-  { name: 'Absent', value: 48, color: '#dc2626' },
-  { name: 'Late', value: 22, color: '#d97706' },
-]
-
-const feeData = [
-  { month: 'Feb', collected: 12.4, pending: 2.1 },
-  { month: 'Mar', collected: 11.8, pending: 2.8 },
-  { month: 'Apr', collected: 14.2, pending: 1.9 },
-  { month: 'May', collected: 13.5, pending: 2.4 },
-  { month: 'Jun', collected: 15.1, pending: 1.6 },
-  { month: 'Jul', collected: 14.8, pending: 2.0 },
-]
-
-const activities = [
-  { text: 'Fee payment received — Rahul Sharma', time: '2 min ago' },
-  { text: 'Attendance marked — Class 10-A', time: '15 min ago' },
-  { text: 'New admission application submitted', time: '1 hr ago' },
-  { text: 'Leave approved — Mrs. Priya Nair', time: '2 hr ago' },
-]
+import { useAIChat, useDashboardStats } from '@/api/hooks'
 
 function AiAssistantCard() {
   const [prompt, setPrompt] = useState('')
@@ -106,14 +77,23 @@ function AiAssistantCard() {
   )
 }
 
-function AdminDashboard() {
+interface AdminDashboardProps {
+  stats: any
+}
+
+function AdminDashboard({ stats }: AdminDashboardProps) {
+  const enrollmentData = stats?.enrollment_data || []
+  const attendanceData = stats?.attendance_data || []
+  const feeData = stats?.fee_data || []
+  const activities = stats?.activities || []
+
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Students" value="912" subtext="Active this year" icon={<Users className="h-5 w-5" />} />
-        <StatCard label="Total Teachers" value="64" subtext="Including staff" icon={<GraduationCap className="h-5 w-5" />} color="bg-purple-600" />
-        <StatCard label="Fee Collected (Month)" value="₹14.8L" trend={8.2} icon={<Wallet className="h-5 w-5" />} color="bg-success" />
-        <StatCard label="Avg Attendance Today" value="92.3%" subtext="842 present" icon={<CalendarCheck className="h-5 w-5" />} color="bg-warning" />
+        <StatCard label="Total Students" value={stats?.total_students?.toString() || "0"} subtext="Active this year" icon={<Users className="h-5 w-5" />} />
+        <StatCard label="Total Teachers" value={stats?.total_teachers?.toString() || "0"} subtext="Including staff" icon={<GraduationCap className="h-5 w-5" />} color="bg-purple-600" />
+        <StatCard label="Fee Collected (Month)" value={stats?.fee_collected || "₹0"} trend={0} icon={<Wallet className="h-5 w-5" />} color="bg-success" />
+        <StatCard label="Avg Attendance Today" value={stats?.avg_attendance || "0.0%"} subtext={stats?.subtext_attendance || "0 present"} icon={<CalendarCheck className="h-5 w-5" />} color="bg-warning" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -134,7 +114,7 @@ function AdminDashboard() {
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie data={attendanceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
-                {attendanceData.map((e) => <Cell key={e.name} fill={e.color} />)}
+                {attendanceData.map((e: any) => <Cell key={e.name} fill={e.color} />)}
               </Pie>
               <Tooltip />
             </PieChart>
@@ -160,10 +140,10 @@ function AdminDashboard() {
           <div className="rounded-xl border bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 flex-1">
             <h3 className="mb-4 font-medium">Recent Activity</h3>
             <ul className="space-y-3">
-              {activities.map((a, i) => (
+              {activities.map((a: any, i: number) => (
                 <li key={i} className="flex justify-between border-b border-slate-100 pb-2 text-sm dark:border-slate-800">
                   <span>{a.text}</span>
-                  <span className="text-slate-400">{a.time}</span>
+                  <span className="text-slate-400 text-xs shrink-0 ml-2">{a.time}</span>
                 </li>
               ))}
             </ul>
@@ -177,22 +157,24 @@ function AdminDashboard() {
 
 export function DashboardPage() {
   const role = useAuthStore((s) => s.user?.role)
+  const { data: stats, isLoading } = useDashboardStats()
 
   return (
-    <PageWrapper title="Dashboard" description="Overview of school operations">
+    <PageWrapper title="Dashboard" description="Overview of school operations" loading={isLoading}>
       {role === 'teacher' || role === 'class_teacher' ? (
         <div className="grid gap-4 md:grid-cols-2">
-          <StatCard label="Classes Today" value="4" subtext="Next: Class 10-A Maths" />
-          <StatCard label="Attendance Pending" value="1" subtext="Class 9-B" color="bg-warning" />
+          <StatCard label="Classes Today" value={stats?.classes_today?.toString() || "0"} subtext="Scheduled classes" />
+          <StatCard label="Attendance Pending" value={stats?.attendance_pending?.toString() || "0"} subtext="Sections to mark" color="bg-warning" />
         </div>
       ) : role === 'student' || role === 'parent' ? (
         <div className="grid gap-4 md:grid-cols-2">
-          <StatCard label="Attendance (Month)" value="94%" />
-          <StatCard label="Fee Status" value="Paid" color="bg-success" />
+          <StatCard label="Attendance (Month)" value={stats?.attendance_rate || "100.0%"} />
+          <StatCard label="Fee Status" value={stats?.fee_status || "Paid"} color={stats?.fee_status === 'Paid' ? 'bg-success' : 'bg-warning'} />
         </div>
       ) : (
-        <AdminDashboard />
+        <AdminDashboard stats={stats} />
       )}
     </PageWrapper>
   )
 }
+

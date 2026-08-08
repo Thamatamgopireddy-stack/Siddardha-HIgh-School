@@ -62,27 +62,25 @@ export function useClasses(academicYearId?: string) {
 
 export function useSections(classId?: string) {
   return useQuery({
-    queryKey: ['sections', classId],
+    queryKey: ['sections', classId || 'all'],
     queryFn: async () => {
-      if (!classId) return []
       const { data } = await api.get<APIResponse<any[]>>('/students/academic/sections', {
-        params: { class_id: classId },
+        params: classId ? { class_id: classId } : {},
       })
       return data.data || []
     },
-    enabled: !!classId,
   })
 }
 
 // Student CRUD hooks
-export function useStudents(page = 1, search = '', sectionId = '', academicYearId = '') {
+export function useStudents(page = 1, search = '', sectionId = '', academicYearId = '', limit = 20) {
   return useQuery({
-    queryKey: ['students', page, search, sectionId, academicYearId],
+    queryKey: ['students', page, search, sectionId, academicYearId, limit],
     queryFn: async () => {
       const { data } = await api.get<APIResponse<Student[]>>('/students', {
         params: {
           page,
-          limit: 20,
+          limit,
           search: search || undefined,
           section_id: sectionId || undefined,
           academic_year_id: academicYearId || undefined,
@@ -224,10 +222,13 @@ export function usePromoteStudent(studentId: string) {
 export function useBulkImportStudents() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (payload: { file: File; academicYearId: string; sectionId?: string }) => {
+    mutationFn: async (payload: { file: File; academicYearId: string; classId?: string; sectionId?: string }) => {
       const formData = new FormData()
       formData.append('file', payload.file)
       formData.append('academic_year_id', payload.academicYearId)
+      if (payload.classId) {
+        formData.append('class_id', payload.classId)
+      }
       if (payload.sectionId) {
         formData.append('section_id', payload.sectionId)
       }
@@ -241,6 +242,175 @@ export function useBulkImportStudents() {
     },
   })
 }
+
+export function useBulkImportTeachers() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>('/teachers/bulk-import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] })
+    },
+  })
+}
+
+export function useBulkImportStaff() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>('/hr/staff/bulk-import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] })
+    },
+  })
+}
+
+export function useBulkImportAdmissions() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { file: File; academicYearId: string; applyingForClassId: string }) => {
+      const formData = new FormData()
+      formData.append('file', payload.file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>(
+        `/admissions/bulk-import?academic_year_id=${payload.academicYearId}&applying_for_class_id=${payload.applyingForClassId}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admissions'] })
+    },
+  })
+}
+
+export function useBulkImportAttendanceExcel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { file: File; sectionId: string; academicYearId: string }) => {
+      const formData = new FormData()
+      formData.append('file', payload.file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>(
+        `/attendance/bulk-import-excel?section_id=${payload.sectionId}&academic_year_id=${payload.academicYearId}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+  })
+}
+
+export function useBulkImportExamMarksExcel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { file: File; scheduleId: string }) => {
+      const formData = new FormData()
+      formData.append('file', payload.file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>(
+        `/exams/schedules/${payload.scheduleId}/marks/bulk-import-excel`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exam-marks'] })
+    },
+  })
+}
+
+export function useBulkImportFeeCollectionsExcel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>(
+        '/fees/collections/bulk-import-excel',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fees'] })
+      queryClient.invalidateQueries({ queryKey: ['student-fee-summaries'] })
+    },
+  })
+}
+
+export function useBulkImportLibraryBooksExcel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>(
+        '/ancillary/library/books/bulk-import-excel',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['books'] })
+    },
+  })
+}
+
+export function useBulkImportTransportRoutesExcel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>(
+        '/ancillary/transport/routes/bulk-import-excel',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transport-routes'] })
+    },
+  })
+}
+
+export function useBulkImportHostelRoomsExcel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const { data } = await api.post<APIResponse<{ imported: number; errors: string[] }>>(
+        '/ancillary/hostel/rooms/bulk-import-excel',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hostel-rooms'] })
+    },
+  })
+}
+
 
 export function useImportStudentsFromGoogleSheets() {
   const queryClient = useQueryClient()
@@ -419,6 +589,9 @@ export function useMarkAttendance() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['attendance', variables.date, variables.section_id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['dashboard-stats'],
       })
     },
   })
@@ -1228,3 +1401,19 @@ export function useSubjects() {
     },
   })
 }
+
+// -------------------------------------------------------------
+// DASHBOARD MODULE HOOKS
+// -------------------------------------------------------------
+export function useDashboardStats() {
+  return useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      const { data } = await api.get<APIResponse<any>>('/dashboard/stats')
+      return data.data
+    },
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true,
+  })
+}
+

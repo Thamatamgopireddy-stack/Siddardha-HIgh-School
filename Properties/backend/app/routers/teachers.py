@@ -1,5 +1,6 @@
 from uuid import UUID, uuid4
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,8 +10,10 @@ from app.core.enums import UserRole
 from app.core.security import hash_password
 from app.core.session import get_db
 from app.models import Staff, User
+from app.utils.excel import parse_excel_or_csv, generate_excel_template
 
 router = APIRouter(prefix="/teachers", tags=["teachers"])
+
 
 
 class TeacherCreate(BaseModel):
@@ -183,6 +186,106 @@ async def update_teacher(
         ),
         message="Teacher updated successfully",
     )
+
+
+@router.get("/bulk-template")
+async def get_teacher_bulk_template():
+    headers = ["Employee ID", "First Name", "Last Name", "Email", "Phone", "Department", "Password"]
+    sample_rows = [
+        {
+            "Employee ID": "EMP2026001",
+            "First Name": "Suresh",
+            "Last Name": "Reddy",
+            "Email": "suresh.reddy@school.edu",
+            "Phone": "9876543211",
+            "Department": "Mathematics",
+            "Password": "Teacher@12345"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Teachers_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=teachers_import_template.xlsx"}
+    )
+
+
+@router.post("/bulk-import")
+async def bulk_import_teachers(
+    file: UploadFile = File(...),
+    _: User = Depends(require_permission("students:edit")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            emp_id = row.get("Employee ID", "").strip()
+            first_name = row.get("First Name", "").strip()
+            last_name = row.get("Last Name", "").strip()
+            email = row.get("Email", "").strip()
+            phone = row.get("Phone", "").strip() or None
+            department = row.get("Department", "").strip() or "Academic"
+            raw_pwd = row.get("Password", "").strip() or "Teacher@12345"
+
+            if not emp_id or not first_name or not last_name or not email:
+                errors.append(f"Row {row_idx}: Missing required fields (Employee ID, First Name, Last Name, Email).")
+                continue
+
+            # Check email existing
+            exist_email = await db.execute(
+                select(User).where((User.email == email) & (User.is_deleted.is_(False)))
+            )
+            if exist_email.scalar_one_or_none():
+                errors.append(f"Row {row_idx}: Email '{email}' already registered.")
+                continue
+
+            # Check emp_id existing
+            exist_emp = await db.execute(
+                select(Staff).where((Staff.employee_id == emp_id) & (Staff.is_deleted.is_(False)))
+            )
+            if exist_emp.scalar_one_or_none():
+                errors.append(f"Row {row_idx}: Employee ID '{emp_id}' already exists.")
+                continue
+
+            user = User(
+                email=email,
+                phone=phone,
+                password_hash=hash_password(raw_pwd),
+                first_name=first_name,
+                last_name=last_name,
+                role=UserRole.TEACHER,
+                is_active=True,
+                is_email_verified=True,
+            )
+            db.add(user)
+            await db.flush()
+
+            staff = Staff(
+                user_id=user.id,
+                employee_id=emp_id,
+                department=department,
+                is_active=True,
+            )
+            db.add(staff)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error creating teacher record ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported {imported_count} teachers with {len(errors)} errors."
+    )
+
 
 
 @router.delete("/{teacher_id}")

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Users, FileText, UserPlus, Calendar, Check, X } from 'lucide-react'
+import { Users, FileText, UserPlus, Calendar, Check, X, Upload } from 'lucide-react'
 
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { DataTable } from '@/components/shared/DataTable'
 import { Modal } from '@/components/shared/Modal'
+import { ExcelImportModal } from '@/components/shared/ExcelImportModal'
 import { FormField } from '@/components/shared/FormField'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -14,6 +15,7 @@ import {
   useApplyLeave,
   useApproveLeave,
   useRejectLeave,
+  useBulkImportStaff,
 } from '@/api/hooks'
 
 export function HrPage() {
@@ -23,12 +25,15 @@ export function HrPage() {
   const { data: leaves, isLoading: isLeavesLoading } = useHRLeaves()
 
   const onboardStaffMutation = useOnboardStaff()
+  const bulkImportStaffMutation = useBulkImportStaff()
   const applyLeaveMutation = useApplyLeave()
   const approveLeaveMutation = useApproveLeave()
   const rejectLeaveMutation = useRejectLeave()
 
   const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false)
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
+
 
   const [onboardForm, setOnboardForm] = useState({
     first_name: '',
@@ -207,12 +212,18 @@ export function HrPage() {
       title="HR Management"
       description="Manage staff onboarding, roles, employee directories, and leave approvals."
       actions={
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <button
             onClick={() => setIsApplyModalOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700"
+            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
           >
             <Calendar className="h-4 w-4" /> Request Leave
+          </button>
+          <button
+            onClick={() => setIsExcelModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <Upload className="h-4 w-4" /> Import Staff Excel
           </button>
           <button
             onClick={() => setIsOnboardModalOpen(true)}
@@ -223,6 +234,16 @@ export function HrPage() {
         </div>
       }
     >
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        title="HR Staff Excel Data Entry"
+        description="Upload an Excel sheet (.xlsx, .xls) or CSV file with employee records to onboard multiple staff members at once."
+        templateUrl="/hr/staff/bulk-template"
+        templateFileName="staff_import_template.xlsx"
+        onImport={async (file) => await bulkImportStaffMutation.mutateAsync(file)}
+      />
+
       <div className="space-y-6">
         {/* Navigation Tabs */}
         <div className="flex border-b border-slate-200 dark:border-slate-800">

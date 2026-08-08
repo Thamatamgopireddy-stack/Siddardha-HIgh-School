@@ -26,12 +26,25 @@ DEFAULT_PERMISSIONS = [
     ("students:export", "Export students"),
     ("students:promote", "Promote students"),
     ("students:admin", "Admin student portal"),
+    ("admissions:view", "View admissions"),
+    ("admissions:create", "Create admissions"),
+    ("admissions:edit", "Edit admissions"),
     ("attendance:view", "View attendance"),
     ("attendance:mark", "Mark attendance"),
     ("fees:view", "View fees"),
     ("fees:collect", "Collect fees"),
     ("exams:view", "View exams"),
     ("exams:manage", "Manage exams"),
+    ("ancillary:view", "View ancillary modules"),
+    ("ancillary:manage", "Manage ancillary modules"),
+    ("teachers:view", "View teachers"),
+    ("teachers:manage", "Manage teachers"),
+    ("timetable:view", "View timetable"),
+    ("timetable:manage", "Manage timetable"),
+    ("payroll:view", "View payroll"),
+    ("payroll:manage", "Manage payroll"),
+    ("hr:view", "View HR"),
+    ("hr:manage", "Manage HR"),
     ("reports:view", "View reports"),
     ("settings:view", "View settings"),
     ("developer:access", "Developer panel access"),
@@ -57,6 +70,11 @@ class AuthService:
         self.db = db
 
     async def authenticate(self, email_or_phone: str, password: str) -> tuple[User, str, str]:
+        if not (email_or_phone.endswith("@gmail.com") or email_or_phone.endswith("@school.edu")):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication is restricted to Gmail accounts (@gmail.com) only",
+            )
         result = await self.db.execute(
             select(User).where(
                 or_(User.email == email_or_phone, User.phone == email_or_phone),
@@ -117,7 +135,7 @@ class AuthService:
         await self.db.flush()
 
     async def get_user_permissions(self, user: User) -> list[str]:
-        if user.role in (UserRole.SUPER_ADMIN, UserRole.DEVELOPER):
+        if user.role in (UserRole.SUPER_ADMIN, UserRole.DEVELOPER, UserRole.SCHOOL_ADMIN):
             result = await self.db.execute(select(Permission.name))
             return [row[0] for row in result.all()]
         result = await self.db.execute(
@@ -130,7 +148,7 @@ class AuthService:
     @staticmethod
     def to_user_brief(user: User) -> UserBrief:
         return UserBrief(
-            id=user.id,
+            id=UUID(user.id),
             email=user.email,
             first_name=user.first_name,
             last_name=user.last_name,

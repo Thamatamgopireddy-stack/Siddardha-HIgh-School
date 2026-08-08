@@ -28,11 +28,14 @@ import { CircularsPage } from '@/pages/circulars/CircularsPage'
 import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { DeveloperPage } from '@/pages/developer/DeveloperPage'
+import { PortalAccessPage } from '@/pages/portal-access/PortalAccessPage'
+import { AiAssistantPage } from '@/pages/ai-assistant/AiAssistantPage'
 
 export function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/portal-login" element={<PortalAccessPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/403" element={<PlaceholderPage title="Access Denied" />} />
@@ -45,6 +48,8 @@ export function AppRouter() {
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/ai-assistant" element={<AiAssistantPage />} />
+        <Route path="/portal-access" element={<PortalAccessPage />} />
         <Route path="/change-password" element={<ChangePasswordPage />} />
         <Route
           path="/students"

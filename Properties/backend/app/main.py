@@ -18,7 +18,7 @@ from app.core.session import AsyncSessionLocal, engine
 from app.core.database import Base
 from app import models  # noqa: F401 — register all ORM models
 from app.services.seed import seed_database
-from app.routers import auth, students, admissions, integrations, attendance, exams, fees, ancillary, ai, reports, developer, teachers, timetable, payroll, hr, notice_board, messages, circulars
+from app.routers import auth, students, admissions, integrations, attendance, exams, fees, ancillary, ai, reports, developer, teachers, timetable, payroll, hr, notice_board, messages, circulars, dashboard, websocket
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("siddardha")
@@ -38,14 +38,14 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title="SRI RAGAVENDRA HIGH SCHOOL", version=settings.APP_VERSION, lifespan=lifespan)
+app = FastAPI(title="Siddardha High School", version=settings.APP_VERSION, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -188,6 +188,8 @@ app.include_router(hr.router, prefix="/api/v1")
 app.include_router(notice_board.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
 app.include_router(circulars.router, prefix="/api/v1")
+app.include_router(dashboard.router, prefix="/api/v1")
+app.include_router(websocket.router, prefix="/api/v1")
 
 
 import os
@@ -197,6 +199,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 FRONTEND_DIST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
 
 class SPAStaticFiles(StaticFiles):
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            return
+        await super().__call__(scope, receive, send)
+
     async def get_response(self, path: str, scope):
         try:
             return await super().get_response(path, scope)
@@ -204,7 +211,7 @@ class SPAStaticFiles(StaticFiles):
             if isinstance(e, StarletteHTTPException) and e.status_code == 404:
                 last_segment = path.split("/")[-1] if path else ""
                 if "." not in last_segment:
-                    index_path = os.path.join(self.directory, "index.html")
+                    index_path = os.path.join(self.directory or "", "index.html")
                     if os.path.exists(index_path):
                         return FileResponse(index_path)
             raise e

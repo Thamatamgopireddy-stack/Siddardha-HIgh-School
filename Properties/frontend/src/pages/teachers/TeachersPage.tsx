@@ -1,20 +1,24 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { UserPlus, Trash2, Mail, Phone, Shield } from 'lucide-react'
+import { UserPlus, Trash2, Mail, Phone, Shield, Upload } from 'lucide-react'
 
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { DataTable } from '@/components/shared/DataTable'
 import { Modal } from '@/components/shared/Modal'
+import { ExcelImportModal } from '@/components/shared/ExcelImportModal'
 import { FormField } from '@/components/shared/FormField'
 import { Badge } from '@/components/ui/Badge'
-import { useTeachers, useCreateTeacher, useDeleteTeacher } from '@/api/hooks'
+import { useTeachers, useCreateTeacher, useDeleteTeacher, useBulkImportTeachers } from '@/api/hooks'
 
 export function TeachersPage() {
   const { data: teachers, isLoading } = useTeachers()
   const createTeacherMutation = useCreateTeacher()
   const deleteTeacherMutation = useDeleteTeacher()
+  const bulkImportTeachersMutation = useBulkImportTeachers()
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
+
   const [formValues, setFormValues] = useState({
     first_name: '',
     last_name: '',
@@ -121,12 +125,20 @@ export function TeachersPage() {
       title="Teachers"
       description="Manage school teachers, roles, and academic staff departments."
       actions={
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-        >
-          <UserPlus className="h-4 w-4" /> Onboard Teacher
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsExcelModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <Upload className="h-4 w-4" /> Excel Upload
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          >
+            <UserPlus className="h-4 w-4" /> Onboard Teacher
+          </button>
+        </div>
       }
     >
       <div className="space-y-6">
@@ -138,6 +150,17 @@ export function TeachersPage() {
           />
         </div>
       </div>
+
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        title="Teachers Excel Data Entry"
+        description="Upload an Excel sheet (.xlsx, .xls) or CSV file with employee records to onboard multiple teachers at once."
+        templateUrl="/teachers/bulk-template"
+        templateFileName="teachers_import_template.xlsx"
+        onImport={async (file) => await bulkImportTeachersMutation.mutateAsync(file)}
+      />
+
 
       <Modal
         isOpen={isAddModalOpen}

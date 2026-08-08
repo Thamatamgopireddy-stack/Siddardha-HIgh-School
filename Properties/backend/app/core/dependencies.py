@@ -52,7 +52,7 @@ async def load_role_permissions(db: AsyncSession) -> None:
 
 
 def has_permission(role: UserRole, permission: str) -> bool:
-    if role in (UserRole.SUPER_ADMIN, UserRole.DEVELOPER):
+    if role in (UserRole.SUPER_ADMIN, UserRole.DEVELOPER, UserRole.SCHOOL_ADMIN):
         return True
     return permission in _role_permissions.get(role.value, set())
 

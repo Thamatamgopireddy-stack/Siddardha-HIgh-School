@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Hotel, BedDouble, HelpCircle } from 'lucide-react'
+import { Plus, Hotel, BedDouble, HelpCircle, Upload } from 'lucide-react'
 
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { FormField } from '@/components/shared/FormField'
 import { Modal } from '@/components/shared/Modal'
+import { ExcelImportModal } from '@/components/shared/ExcelImportModal'
 import { DataTable } from '@/components/shared/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -12,6 +13,7 @@ import {
   useCreateHostel,
   useHostelRooms,
   useCreateHostelRoom,
+  useBulkImportHostelRoomsExcel,
 } from '@/api/hooks'
 
 type HostelTab = 'hostels' | 'rooms'
@@ -23,6 +25,7 @@ export function HostelPage() {
   // Modals state
   const [isAddHostelOpen, setIsAddHostelOpen] = useState(false)
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false)
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
 
   // API Hooks
   const { data: hostels, isLoading: isHostelsLoading } = useHostels()
@@ -30,6 +33,8 @@ export function HostelPage() {
 
   const createHostelMutation = useCreateHostel()
   const createRoomMutation = useCreateHostelRoom()
+  const bulkImportHostelRoomsMutation = useBulkImportHostelRoomsExcel()
+
 
   // Form states
   const [hostelForm, setHostelForm] = useState({
@@ -85,6 +90,12 @@ export function HostelPage() {
       actions={
         <div className="flex gap-2">
           <button
+            onClick={() => setIsExcelModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <Upload className="h-4 w-4" /> Import Rooms Excel
+          </button>
+          <button
             onClick={() => setIsAddHostelOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
           >
@@ -100,6 +111,16 @@ export function HostelPage() {
         </div>
       }
     >
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        title="Hostel Rooms Excel Import"
+        description="Upload an Excel sheet (.xlsx, .xls) or CSV file with hostel names, room numbers, capacities, and term fees."
+        templateUrl="/ancillary/hostel/rooms/bulk-template"
+        templateFileName="hostel_rooms_import_template.xlsx"
+        onImport={async (file) => await bulkImportHostelRoomsMutation.mutateAsync(file)}
+      />
+
       {/* Tabs Selector */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6">
         <button

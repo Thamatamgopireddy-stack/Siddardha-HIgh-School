@@ -1,4 +1,4 @@
-# Siddardha High School ERP
+# Siddardha High School
 
 Production-grade School Management System for CBSE/ICSE schools in India.
 

@@ -15,8 +15,8 @@ def _get_access_token() -> str | None:
         # In a real-world scenario, we can use google-auth to generate tokens,
         # or construct a JWT grant manually.
         # We try importing google-auth first.
-        from google.oauth2 import service_account
-        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account  # type: ignore
+        from google.auth.transport.requests import Request  # type: ignore
         
         info = json.loads(settings.GOOGLE_SHEETS_CREDENTIALS_JSON)
         creds = service_account.Credentials.from_service_account_info(

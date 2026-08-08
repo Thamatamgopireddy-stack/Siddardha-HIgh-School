@@ -42,7 +42,7 @@ async def extract_text_from_image(image_bytes: bytes) -> dict:
 
     # 2. Try pytesseract locally as secondary fallback
     try:
-        import pytesseract
+        import pytesseract  # type: ignore
         from PIL import Image
         import io
         
@@ -63,6 +63,6 @@ async def extract_text_from_image(image_bytes: bytes) -> dict:
     # 3. Fallback/Mock return for development testing
     return {
         "success": False,
-        "text": "OCR Mock Result: Greenfield School Certificate\nName: Rahul Sharma\nDOB: 12/04/2010\nGender: Male\nFather's Name: Amit Sharma",
+        "text": "OCR Mock Result: Siddardha High School Certificate\nName: Rahul Sharma\nDOB: 12/04/2010\nGender: Male\nFather's Name: Amit Sharma",
         "raw": {"engine": "mock"}
     }

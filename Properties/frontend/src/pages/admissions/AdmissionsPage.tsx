@@ -7,6 +7,7 @@ import { PageWrapper } from '@/components/layout/PageWrapper'
 import { DataTable } from '@/components/shared/DataTable'
 import { Modal } from '@/components/shared/Modal'
 import { FileUpload } from '@/components/shared/FileUpload'
+import { ExcelImportModal } from '@/components/shared/ExcelImportModal'
 import { FormField } from '@/components/shared/FormField'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -18,6 +19,7 @@ import {
   useUpdateAdmission,
   useOCROnDocument,
   useConvertAdmissionToStudent,
+  useBulkImportAdmissions,
 } from '@/api/hooks'
 
 export function AdmissionsPage() {
@@ -27,8 +29,12 @@ export function AdmissionsPage() {
 
   // Modals / forms state
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isExcelOpen, setIsExcelOpen] = useState(false)
   const [editingAdmission, setEditingAdmission] = useState<any | null>(null)
   const [isOCRLoading, setIsOCRLoading] = useState(false)
+
+  const bulkImportAdmissionsMutation = useBulkImportAdmissions()
+
   
   // Convert Modal State
   const [convertCandidate, setConvertCandidate] = useState<any | null>(null)
@@ -183,18 +189,80 @@ export function AdmissionsPage() {
       title="Admissions"
       description="Manage student admission enquiries and formal applications."
       actions={
-        <button
-          onClick={() => {
-            resetForm()
-            setIsAddOpen(true)
-          }}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          <UserPlus className="h-4 w-4" />
-          Add Application
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsExcelOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <Upload className="h-4 w-4" /> Import Excel
+          </button>
+          <button
+            onClick={() => {
+              resetForm()
+              setIsAddOpen(true)
+            }}
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add Application
+          </button>
+        </div>
       }
     >
+      <ExcelImportModal
+        isOpen={isExcelOpen}
+        onClose={() => setIsExcelOpen(false)}
+        title="Admissions Excel Import"
+        description="Upload an Excel sheet (.xlsx, .xls) or CSV file with applicant details."
+        templateUrl="/admissions/bulk-template"
+        templateFileName="admissions_import_template.xlsx"
+        extraFields={
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Academic Year" required>
+              <select
+                value={formValues.academic_year_id}
+                onChange={(e) => setFormValues({ ...formValues, academic_year_id: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800"
+                required
+              >
+                <option value="">Select Year...</option>
+                {academicYears?.map((y: any) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name}
+                  </option>
+                ))}
+
+              </select>
+            </FormField>
+            <FormField label="Applying For Class" required>
+              <select
+                value={formValues.applying_for_class_id}
+                onChange={(e) => setFormValues({ ...formValues, applying_for_class_id: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800"
+                required
+              >
+                <option value="">Select Class...</option>
+                {classes?.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </div>
+        }
+        onImport={async (file) => {
+          if (!formValues.academic_year_id || !formValues.applying_for_class_id) {
+            throw new Error('Please select Academic Year and Applying For Class first')
+          }
+          return await bulkImportAdmissionsMutation.mutateAsync({
+            file,
+            academicYearId: formValues.academic_year_id,
+            applyingForClassId: formValues.applying_for_class_id,
+          })
+        }}
+      />
+
       {/* Search and Filters */}
       <div className="flex gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex-1">

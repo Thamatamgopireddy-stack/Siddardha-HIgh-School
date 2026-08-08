@@ -12,6 +12,8 @@ from app.core.session import get_db
 from app.models import FeeStructure, FeePayment, Student, User, Section, SchoolClass
 from app.utils.ocr import extract_text_from_image
 from app.utils.pdf import generate_pdf
+from app.utils.excel import parse_excel_or_csv, generate_excel_template
+
 
 logger = logging.getLogger("siddardha")
 
@@ -349,3 +351,91 @@ async def list_student_fee_balances(
         })
         
     return success_response(data=data)
+
+
+@router.get("/collections/bulk-template")
+async def get_fee_collections_bulk_template():
+    headers = ["Admission Number", "Amount Paid", "Payment Date", "Payment Mode", "Transaction Reference", "Remarks"]
+    sample_rows = [
+        {
+            "Admission Number": "ADM2026001",
+            "Amount Paid": "5000",
+            "Payment Date": date.today().isoformat(),
+            "Payment Mode": "cash",
+            "Transaction Reference": "REC-99812",
+            "Remarks": "Term 1 Tuition Fee"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Fee_Collections_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=fee_collections_import_template.xlsx"}
+    )
+
+
+@router.post("/collections/bulk-import-excel")
+async def bulk_import_fee_collections_excel(
+    file: UploadFile = File(...),
+    _: User = Depends(require_permission("fees:edit")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            adm_num = row.get("Admission Number", "").strip()
+            amount_str = row.get("Amount Paid", "").strip()
+            pay_date_str = row.get("Payment Date", "").strip() or date.today().isoformat()
+            pay_mode = row.get("Payment Mode", "").strip().lower() or "cash"
+            tx_ref = row.get("Transaction Reference", "").strip() or None
+            remarks = row.get("Remarks", "").strip() or None
+
+            if not adm_num or not amount_str:
+                errors.append(f"Row {row_idx}: Missing Admission Number or Amount Paid.")
+                continue
+
+            stu_query = select(Student).where(Student.admission_number == adm_num, Student.is_deleted.is_(False))
+            student = (await db.execute(stu_query)).scalar_one_or_none()
+            if not student:
+                errors.append(f"Row {row_idx}: Student with admission number '{adm_num}' not found.")
+                continue
+
+            try:
+                amount_val = float(amount_str)
+                pay_date = date.fromisoformat(pay_date_str[:10])
+            except ValueError as ve:
+                errors.append(f"Row {row_idx}: Invalid amount or date format ({ve})")
+                continue
+
+            receipt_no = tx_ref or f"REC-{date.today().strftime('%Y%m')}-{uuid4().hex[:6].upper()}"
+
+            payment = FeePayment(
+                student_id=str(student.id),
+                fee_structure_id=None,
+                amount_paid=amount_val,
+                payment_date=pay_date,
+                payment_mode=pay_mode,
+                transaction_reference=receipt_no,
+                receipt_number=receipt_no,
+                remarks=remarks,
+            )
+            db.add(payment)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error logging fee payment ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported {imported_count} fee collection records with {len(errors)} errors."
+    )
+

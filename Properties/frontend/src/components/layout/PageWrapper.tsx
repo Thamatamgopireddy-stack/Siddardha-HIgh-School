@@ -17,13 +17,13 @@ export function PageWrapper({ title, description, actions, children, loading }: 
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-primary dark:text-white">{title}</h1>
-          {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primary dark:text-white">{title}</h1>
+          {description && <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">{description}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {children}
     </div>

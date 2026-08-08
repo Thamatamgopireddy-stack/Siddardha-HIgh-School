@@ -30,9 +30,12 @@ export const useAuthStore = create<AuthState>()(
 
 interface UIState {
   sidebarCollapsed: boolean
+  mobileSidebarOpen: boolean
   darkMode: boolean
   toggleSidebar: () => void
   setSidebarCollapsed: (v: boolean) => void
+  toggleMobileSidebar: () => void
+  setMobileSidebarOpen: (v: boolean) => void
   toggleDarkMode: () => void
 }
 
@@ -40,9 +43,12 @@ export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
       sidebarCollapsed: false,
+      mobileSidebarOpen: false,
       darkMode: false,
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+      toggleMobileSidebar: () => set({ mobileSidebarOpen: !get().mobileSidebarOpen }),
+      setMobileSidebarOpen: (mobileSidebarOpen) => set({ mobileSidebarOpen }),
       toggleDarkMode: () => {
         const darkMode = !get().darkMode
         document.documentElement.classList.toggle('dark', darkMode)

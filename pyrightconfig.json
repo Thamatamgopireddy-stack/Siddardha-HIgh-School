@@ -1,0 +1,8 @@
+{
+  "venvPath": "c:\\Siddardha HIgh School\\Properties",
+  "venv": ".venv",
+  "extraPaths": [
+    "Properties/backend",
+    "Properties/backend/app"
+  ]
+}

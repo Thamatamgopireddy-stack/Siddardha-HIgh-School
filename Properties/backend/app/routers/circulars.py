@@ -72,7 +72,7 @@ async def create_circular(
             "title": circular.title,
             "content": circular.content,
             "target_role": circular.target_role,
-            "published_at": circular.published_at.isoformat(),
+            "published_at": circular.published_at.isoformat() if circular.published_at else None,
         },
         message="Circular created and published successfully",
     )

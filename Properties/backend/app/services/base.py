@@ -19,15 +19,15 @@ class CRUDService(Generic[ModelType, CreateSchema, UpdateSchema]):
 
     async def get(self, id: UUID) -> ModelType | None:
         result = await self.db.execute(
-            select(self.model).where(self.model.id == id, self.model.is_deleted.is_(False))
+            select(self.model).where(self.model.id == id, self.model.is_deleted.is_(False))  # type: ignore
         )
         return result.scalar_one_or_none()
 
     async def get_multi(
         self, *, skip: int = 0, limit: int = 20, filters: dict | None = None
     ) -> tuple[list[ModelType], int]:
-        query = select(self.model).where(self.model.is_deleted.is_(False))
-        count_query = select(func.count()).select_from(self.model).where(self.model.is_deleted.is_(False))
+        query = select(self.model).where(self.model.is_deleted.is_(False))  # type: ignore
+        count_query = select(func.count()).select_from(self.model).where(self.model.is_deleted.is_(False))  # type: ignore
 
         if filters:
             for key, value in filters.items():
@@ -43,14 +43,14 @@ class CRUDService(Generic[ModelType, CreateSchema, UpdateSchema]):
         obj = await self.get(id)
         if not obj:
             return None
-        obj.is_deleted = True
-        obj.deleted_at = utcnow()
-        obj.deleted_by = deleted_by
+        obj.is_deleted = True  # type: ignore
+        obj.deleted_at = utcnow()  # type: ignore
+        obj.deleted_by = deleted_by  # type: ignore
         await self.db.flush()
         return obj
 
     async def exists(self, **kwargs) -> bool:
-        query = select(self.model).where(self.model.is_deleted.is_(False))
+        query = select(self.model).where(self.model.is_deleted.is_(False))  # type: ignore
         for key, value in kwargs.items():
             query = query.where(getattr(self.model, key) == value)
         result = await self.db.execute(query.limit(1))

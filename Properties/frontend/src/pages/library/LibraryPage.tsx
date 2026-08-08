@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, BookOpen, UserCheck, ArrowUpRight, CheckCircle2 } from 'lucide-react'
+import { Plus, BookOpen, UserCheck, ArrowUpRight, CheckCircle2, Upload } from 'lucide-react'
 
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { FormField } from '@/components/shared/FormField'
 import { Modal } from '@/components/shared/Modal'
+import { ExcelImportModal } from '@/components/shared/ExcelImportModal'
 import { DataTable } from '@/components/shared/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -15,6 +16,7 @@ import {
   useReturnBook,
   useAcademicYears,
   useStudents,
+  useBulkImportLibraryBooksExcel,
 } from '@/api/hooks'
 
 type LibraryTab = 'inventory' | 'issues'
@@ -24,7 +26,11 @@ export function LibraryPage() {
   
   // Modals state
   const [isAddBookOpen, setIsAddBookOpen] = useState(false)
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
   const [isIssueBookOpen, setIsIssueBookOpen] = useState(false)
+
+  const bulkImportBooksMutation = useBulkImportLibraryBooksExcel()
+
   const [selectedBookId, setSelectedBookId] = useState<string>('')
 
   // API Hooks
@@ -101,15 +107,33 @@ export function LibraryPage() {
       title="Library Management"
       description="Catalogue reading books inventory and register borrowing cards."
       actions={
-        <button
-          onClick={() => setIsAddBookOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4" />
-          Catalogue Book
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsExcelModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <Upload className="h-4 w-4" /> Import Books Excel
+          </button>
+          <button
+            onClick={() => setIsAddBookOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" />
+            Catalogue Book
+          </button>
+        </div>
       }
     >
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        title="Library Books Excel Import"
+        description="Upload an Excel sheet (.xlsx, .xls) or CSV file with book catalog titles, authors, and ISBNs."
+        templateUrl="/ancillary/library/books/bulk-template"
+        templateFileName="library_books_import_template.xlsx"
+        onImport={async (file) => await bulkImportBooksMutation.mutateAsync(file)}
+      />
+
       {/* Tabs Selector */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6">
         <button

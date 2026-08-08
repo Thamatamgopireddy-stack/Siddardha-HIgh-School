@@ -2,6 +2,7 @@ import logging
 from datetime import date
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, Query, File, UploadFile, Form, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,8 @@ from app.core.dependencies import require_permission, success_response
 from app.core.session import get_db
 from app.models import Exam, ExamSchedule, ExamMark, Student, User, Assignment, AssignmentSubmission
 from app.utils.storage import upload_file
+from app.utils.excel import parse_excel_or_csv, generate_excel_template
+
 
 logger = logging.getLogger("siddardha")
 
@@ -226,6 +229,93 @@ async def save_schedule_marks(
     return success_response(message="Exam marks saved successfully.")
 
 
+@router.get("/marks/bulk-template")
+async def get_exam_marks_bulk_template():
+    headers = ["Admission Number", "Marks Obtained", "Remarks"]
+    sample_rows = [
+        {
+            "Admission Number": "ADM2026001",
+            "Marks Obtained": "85.5",
+            "Remarks": "Excellent"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Exam_Marks_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=exam_marks_import_template.xlsx"}
+    )
+
+
+@router.post("/schedules/{schedule_id}/marks/bulk-import-excel")
+async def bulk_import_schedule_marks_excel(
+    schedule_id: UUID,
+    file: UploadFile = File(...),
+    _: User = Depends(require_permission("exams:edit")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            adm_num = row.get("Admission Number", "").strip()
+            marks_str = row.get("Marks Obtained", "").strip()
+            remarks = row.get("Remarks", "").strip() or None
+
+            if not adm_num or marks_str == "":
+                errors.append(f"Row {row_idx}: Missing Admission Number or Marks Obtained.")
+                continue
+
+            stu_query = select(Student).where(Student.admission_number == adm_num, Student.is_deleted.is_(False))
+            student = (await db.execute(stu_query)).scalar_one_or_none()
+            if not student:
+                errors.append(f"Row {row_idx}: Student with admission number '{adm_num}' not found.")
+                continue
+
+            try:
+                marks_val = float(marks_str)
+            except ValueError:
+                errors.append(f"Row {row_idx}: Invalid numeric value for marks '{marks_str}'.")
+                continue
+
+            exist_query = select(ExamMark).where(
+                ExamMark.exam_schedule_id == str(schedule_id),
+                ExamMark.student_id == str(student.id),
+                ExamMark.is_deleted.is_(False)
+            )
+            existing = (await db.execute(exist_query)).scalar_one_or_none()
+
+            if existing:
+                existing.marks_obtained = marks_val
+                existing.remarks = remarks
+            else:
+                mark = ExamMark(
+                    exam_schedule_id=str(schedule_id),
+                    student_id=str(student.id),
+                    marks_obtained=marks_val,
+                    remarks=remarks,
+                )
+                db.add(mark)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error importing mark ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported marks for {imported_count} students with {len(errors)} errors."
+    )
+
+
+
 # --- LMS ROUTERS ---
 @router.get("/lms/assignments")
 async def list_assignments(
@@ -257,7 +347,7 @@ async def create_assignment(
     if file:
         content = await file.read()
         key = f"assignments/{uuid4()}_{file.filename}"
-        file_url = upload_file(content, key, file.content_type)
+        file_url = upload_file(content, key, file.content_type or "application/octet-stream")
 
     assignment = Assignment(
         section_id=str(section_id),
@@ -298,7 +388,7 @@ async def submit_assignment(
 ):
     content = await file.read()
     key = f"submissions/{assignment_id}/{student_id}_{file.filename}"
-    file_url = upload_file(content, key, file.content_type)
+    file_url = upload_file(content, key, file.content_type or "application/octet-stream")
 
     sub = AssignmentSubmission(
         assignment_id=str(assignment_id),

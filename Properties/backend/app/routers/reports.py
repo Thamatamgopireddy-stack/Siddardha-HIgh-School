@@ -99,8 +99,8 @@ async def issue_student_certificate(
     father = (await db.execute(father_query)).scalar_one_or_none()
     mother = (await db.execute(mother_query)).scalar_one_or_none()
     
-    father_name = father.name if father else "Shri Sharma"
-    mother_name = mother.name if mother else "Shrimati Sharma"
+    father_name = f"{father.first_name} {father.last_name}".strip() if father else "Shri Sharma"
+    mother_name = f"{mother.first_name} {mother.last_name}".strip() if mother else "Shrimati Sharma"
     
     # Get class name
     sec_res = await db.execute(select(Section).where(Section.id == student.section_id))

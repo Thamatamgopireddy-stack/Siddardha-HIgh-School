@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 import logging
 
 from fastapi import APIRouter, Depends, Query, File, UploadFile, HTTPException
+from fastapi.responses import Response
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, ConfigDict
@@ -13,6 +14,8 @@ from app.core.enums import AdmissionStatus, Gender
 from app.core.session import get_db
 from app.models import Admission, Student, User
 from app.utils.ocr import extract_text_from_image
+from app.utils.excel import parse_excel_or_csv, generate_excel_template
+
 
 logger = logging.getLogger("siddardha")
 
@@ -276,3 +279,87 @@ async def convert_to_student(
         data={"student_id": student.id, "admission_number": adm_num},
         message="Admission application converted to registered student record successfully!"
     )
+
+
+@router.get("/bulk-template")
+async def get_admissions_bulk_template():
+    headers = ["Applicant Name", "Date of Birth", "Gender", "Phone", "Status"]
+    sample_rows = [
+        {
+            "Applicant Name": "Vikram Das",
+            "Date of Birth": "2016-08-20",
+            "Gender": "male",
+            "Phone": "9876543213",
+            "Status": "applied"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Admissions_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=admissions_import_template.xlsx"}
+    )
+
+
+@router.post("/bulk-import")
+async def bulk_import_admissions(
+    academic_year_id: UUID = Query(...),
+    applying_for_class_id: UUID = Query(...),
+    file: UploadFile = File(...),
+    _: User = Depends(require_permission("students:create")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            name = row.get("Applicant Name", "").strip()
+            dob_str = row.get("Date of Birth", "").strip()
+            gender_str = row.get("Gender", "").strip().lower()
+            phone = row.get("Phone", "").strip()
+            status_str = row.get("Status", "").strip().lower() or "applied"
+
+            if not name or not dob_str or not gender_str or not phone:
+                errors.append(f"Row {row_idx}: Missing required fields (Applicant Name, Date of Birth, Gender, Phone).")
+                continue
+
+            try:
+                dob = date.fromisoformat(dob_str[:10])
+                gender = Gender(gender_str)
+                adm_status = AdmissionStatus(status_str)
+            except Exception as pe:
+                errors.append(f"Row {row_idx}: Validation error ({pe})")
+                continue
+
+            application_no = f"ADM-{date.today().year}-{uuid4().hex[:6].upper()}"
+
+            admission = Admission(
+                application_number=application_no,
+                academic_year_id=str(academic_year_id),
+                applying_for_class_id=str(applying_for_class_id),
+                applicant_name=name,
+                date_of_birth=dob,
+                gender=gender,
+                phone=phone,
+                status=adm_status,
+                application_date=date.today(),
+            )
+            db.add(admission)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error importing application ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported {imported_count} admission applications with {len(errors)} errors."
+    )
+

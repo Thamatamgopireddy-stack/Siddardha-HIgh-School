@@ -1,7 +1,8 @@
 import logging
 from datetime import date, datetime
 from uuid import UUID, uuid4
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, File, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import require_permission, success_response
 from app.core.session import get_db
 from app.models import Book, BookIssue, Hostel, HostelRoom, TransportRoute, Vehicle, Student, User
+from app.utils.excel import parse_excel_or_csv, generate_excel_template
+
 
 logger = logging.getLogger("siddardha")
 
@@ -346,7 +349,8 @@ async def update_vehicle_gps(
     vehicle.is_tracking = body.is_tracking
     vehicle.current_latitude = body.latitude
     vehicle.current_longitude = body.longitude
-    vehicle.last_location_update = datetime.utcnow()
+    from datetime import timezone
+    vehicle.last_location_update = datetime.now(timezone.utc)
     
     await db.flush()
     return success_response(data=VehicleOut.model_validate(vehicle).model_dump(mode="json"), message="GPS coordinates updated")
@@ -373,3 +377,229 @@ async def get_vehicle_gps(
             "last_location_update": vehicle.last_location_update.isoformat() if vehicle.last_location_update else None
         }
     )
+
+
+# --- LIBRARY BULK ENDPOINTS ---
+@router.get("/library/books/bulk-template")
+async def get_library_books_bulk_template():
+    headers = ["Book Title", "Author", "ISBN", "Quantity"]
+    sample_rows = [
+        {
+            "Book Title": "Concepts of Physics",
+            "Author": "H.C. Verma",
+            "ISBN": "978-8177091877",
+            "Quantity": "5"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Library_Books_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=library_books_import_template.xlsx"}
+    )
+
+
+@router.post("/library/books/bulk-import-excel")
+async def bulk_import_library_books_excel(
+    file: UploadFile = File(...),
+    _: User = Depends(require_permission("library:edit")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            title = row.get("Book Title", "").strip()
+            author = row.get("Author", "").strip()
+            isbn = row.get("ISBN", "").strip() or None
+            qty_str = row.get("Quantity", "").strip() or "1"
+
+            if not title or not author:
+                errors.append(f"Row {row_idx}: Missing Book Title or Author.")
+                continue
+
+            try:
+                qty = int(qty_str)
+            except ValueError:
+                qty = 1
+
+            book = Book(
+                title=title,
+                author=author,
+                isbn=isbn,
+                quantity=qty,
+                available_quantity=qty,
+            )
+            db.add(book)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error adding book ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported {imported_count} library books with {len(errors)} errors."
+    )
+
+
+# --- TRANSPORT BULK ENDPOINTS ---
+@router.get("/transport/routes/bulk-template")
+async def get_transport_routes_bulk_template():
+    headers = ["Route Name", "Vehicle Number", "Driver Name", "Driver Phone", "Fare Amount"]
+    sample_rows = [
+        {
+            "Route Name": "Route A - Benz Circle",
+            "Vehicle Number": "AP 16 TZ 1234",
+            "Driver Name": "Ramesh Kumar",
+            "Driver Phone": "9876500001",
+            "Fare Amount": "1200"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Transport_Routes_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=transport_routes_import_template.xlsx"}
+    )
+
+
+@router.post("/transport/routes/bulk-import-excel")
+async def bulk_import_transport_routes_excel(
+    file: UploadFile = File(...),
+    _: User = Depends(require_permission("transport:edit")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            route_name = row.get("Route Name", "").strip()
+            vehicle_no = row.get("Vehicle Number", "").strip() or None
+            driver_name = row.get("Driver Name", "").strip() or None
+            driver_phone = row.get("Driver Phone", "").strip() or None
+            fare_str = row.get("Fare Amount", "").strip() or "0"
+
+            if not route_name:
+                errors.append(f"Row {row_idx}: Missing Route Name.")
+                continue
+
+            try:
+                fare = float(fare_str)
+            except ValueError:
+                fare = 0.0
+
+            route = TransportRoute(
+                name=route_name,
+                vehicle_number=vehicle_no,
+                driver_name=driver_name,
+                driver_phone=driver_phone,
+                monthly_fare=fare,
+            )
+            db.add(route)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error adding transport route ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported {imported_count} transport routes with {len(errors)} errors."
+    )
+
+
+# --- HOSTEL BULK ENDPOINTS ---
+@router.get("/hostel/rooms/bulk-template")
+async def get_hostel_rooms_bulk_template():
+    headers = ["Hostel Name", "Room Number", "Capacity", "Fee Per Term"]
+    sample_rows = [
+        {
+            "Hostel Name": "Senior Boys Hostel",
+            "Room Number": "101",
+            "Capacity": "4",
+            "Fee Per Term": "15000"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Hostel_Rooms_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=hostel_rooms_import_template.xlsx"}
+    )
+
+
+@router.post("/hostel/rooms/bulk-import-excel")
+async def bulk_import_hostel_rooms_excel(
+    file: UploadFile = File(...),
+    _: User = Depends(require_permission("hostel:edit")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            hostel_name = row.get("Hostel Name", "").strip()
+            room_no = row.get("Room Number", "").strip()
+            cap_str = row.get("Capacity", "").strip() or "2"
+            fee_str = row.get("Fee Per Term", "").strip() or "0"
+
+            if not hostel_name or not room_no:
+                errors.append(f"Row {row_idx}: Missing Hostel Name or Room Number.")
+                continue
+
+            # Find or create Hostel
+            hostel_res = await db.execute(select(Hostel).where(Hostel.name == hostel_name, Hostel.is_deleted.is_(False)))
+            hostel = hostel_res.scalar_one_or_none()
+            if not hostel:
+                hostel = Hostel(name=hostel_name, type="Boys")
+                db.add(hostel)
+                await db.flush()
+
+            try:
+                capacity = int(cap_str)
+                fee = float(fee_str)
+            except ValueError:
+                capacity = 2
+                fee = 0.0
+
+            room = HostelRoom(
+                hostel_id=str(hostel.id),
+                room_number=room_no,
+                capacity=capacity,
+                current_occupancy=0,
+                fee_per_term=fee,
+            )
+            db.add(room)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error adding hostel room ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported {imported_count} hostel rooms with {len(errors)} errors."
+    )
+

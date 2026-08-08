@@ -1,7 +1,8 @@
 import logging
 from datetime import date
 from uuid import UUID, uuid4
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, File, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,8 @@ from app.core.enums import AttendanceStatus
 from app.core.session import get_db
 from app.models import Attendance, Student, Parent, User
 from app.utils.sms import send_sms
+from app.utils.excel import parse_excel_or_csv, generate_excel_template
+
 
 logger = logging.getLogger("siddardha")
 
@@ -21,13 +24,13 @@ router = APIRouter(prefix="/attendance", tags=["attendance"])
 class AttendanceRecordOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: UUID
-    student_id: UUID
-    section_id: UUID
-    academic_year_id: UUID
+    id: str | UUID
+    student_id: str | UUID
+    section_id: str | UUID | None = None
+    academic_year_id: str | UUID | None = None
     date: date
-    status: AttendanceStatus
-    marked_by: UUID
+    status: str | AttendanceStatus
+    marked_by: str | UUID | None = None
 
 
 class AttendanceMark(BaseModel):
@@ -116,5 +119,101 @@ async def mark_bulk_attendance(
                     asyncio.create_task(send_sms(parent.phone, message))
                     logger.info(f"Triggered async parent SMS alert to {parent.phone}")
 
-    await db.flush()
-    return success_response(message=f"Attendance marked successfully for {len(body.records)} students.")
+    await db.commit()
+    return success_response(
+        data=[AttendanceRecordOut.model_validate(r).model_dump(mode="json") for r in marked_records],
+        message=f"Attendance updated for {len(marked_records)} students."
+    )
+
+
+@router.get("/bulk-template")
+async def get_attendance_bulk_template():
+    headers = ["Admission Number", "Date", "Status", "Remarks"]
+    sample_rows = [
+        {
+            "Admission Number": "ADM2026001",
+            "Date": date.today().isoformat(),
+            "Status": "present",
+            "Remarks": "On time"
+        }
+    ]
+    file_bytes = generate_excel_template(headers, sample_rows, sheet_name="Attendance_Template")
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=attendance_import_template.xlsx"}
+    )
+
+
+@router.post("/bulk-import-excel")
+async def bulk_import_attendance_excel(
+    section_id: UUID = Query(...),
+    academic_year_id: UUID = Query(...),
+    file: UploadFile = File(...),
+    user: User = Depends(require_permission("attendance:edit")),
+    db: AsyncSession = Depends(get_db),
+):
+    filename = file.filename or ""
+    if not filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise HTTPException(status_code=400, detail="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported.")
+
+    content = await file.read()
+    rows = parse_excel_or_csv(content, filename)
+
+    imported_count = 0
+    errors = []
+
+    for row_idx, row in enumerate(rows, start=1):
+        try:
+            adm_num = row.get("Admission Number", "").strip()
+            date_str = row.get("Date", "").strip()
+            status_str = row.get("Status", "").strip().lower()
+
+            if not adm_num or not date_str or not status_str:
+                errors.append(f"Row {row_idx}: Missing Admission Number, Date, or Status.")
+                continue
+
+            # Find student by admission number
+            stu_query = select(Student).where(Student.admission_number == adm_num, Student.is_deleted.is_(False))
+            student = (await db.execute(stu_query)).scalar_one_or_none()
+            if not student:
+                errors.append(f"Row {row_idx}: Student with admission number '{adm_num}' not found.")
+                continue
+
+            try:
+                att_date = date.fromisoformat(date_str[:10])
+                att_status = AttendanceStatus(status_str)
+            except Exception as pe:
+                errors.append(f"Row {row_idx}: Invalid date or status value ({pe})")
+                continue
+
+            exist_query = select(Attendance).where(
+                Attendance.student_id == str(student.id),
+                Attendance.date == att_date,
+                Attendance.is_deleted.is_(False)
+            )
+            existing = (await db.execute(exist_query)).scalar_one_or_none()
+
+            if existing:
+                existing.status = att_status
+                existing.marked_by = str(user.id)
+            else:
+                att = Attendance(
+                    student_id=str(student.id),
+                    section_id=str(section_id),
+                    academic_year_id=str(academic_year_id),
+                    date=att_date,
+                    status=att_status,
+                    marked_by=str(user.id),
+                )
+                db.add(att)
+            imported_count += 1
+        except Exception as e:
+            errors.append(f"Row {row_idx}: Error processing attendance row ({e})")
+
+    await db.commit()
+    return success_response(
+        data={"imported": imported_count, "errors": errors},
+        message=f"Successfully imported attendance for {imported_count} records with {len(errors)} errors."
+    )
+

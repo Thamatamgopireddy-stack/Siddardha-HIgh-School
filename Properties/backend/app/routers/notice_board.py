@@ -98,4 +98,24 @@ async def publish_notice(
     notice.is_published = True
     notice.published_at = datetime.now(timezone.utc)
     await db.commit()
+
+    # Broadcast notice in real-time over WebSocket
+    try:
+        from app.services.websocket import ws_manager
+        ws_packet = {
+            "type": "new_notice",
+            "data": {
+                "id": str(notice.id),
+                "title": notice.title,
+                "content": notice.content,
+                "target_role": notice.target_role,
+            }
+        }
+        if notice.target_role and notice.target_role != "all":
+            await ws_manager.broadcast_to_role(ws_packet, notice.target_role)
+        else:
+            await ws_manager.broadcast_to_all(ws_packet)
+    except Exception:
+        pass
+
     return success_response(message="Notice published successfully to the Notice Board")

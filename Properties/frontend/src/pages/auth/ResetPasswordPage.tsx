@@ -35,10 +35,14 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-sidebar p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-md dark:bg-slate-900">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-sidebar p-4 overflow-hidden">
+      <div className="relative z-10 w-full max-w-md rounded-xl bg-white p-8 shadow-md dark:bg-slate-900">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">E</div>
+          <img 
+            src="/logo.jpg" 
+            alt="Siddardha High School Logo" 
+            className="mx-auto mb-4 h-14 w-14 rounded-full object-cover border border-slate-100 dark:border-slate-800 shadow-sm"
+          />
           <h1 className="text-2xl font-semibold text-primary">Reset Password</h1>
           <p className="mt-1 text-sm text-slate-500">Reset your password using the OTP sent to your email.</p>
         </div>
@@ -95,6 +99,20 @@ export function ResetPasswordPage() {
           <Link to="/login" className="text-accent hover:underline">Back to Login</Link>
         </p>
       </div>
+      {/* Overlay Watermark Background Image */}
+      <div 
+        className="pointer-events-none absolute z-20 opacity-[0.15] dark:opacity-[0.06]"
+        style={{ 
+          backgroundImage: 'url("/logo.jpg")',
+          backgroundSize: 'cover',
+          width: 'min(75vw, 750px)',
+          height: 'min(75vw, 750px)',
+          borderRadius: '50%',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
     </div>
   )
 }

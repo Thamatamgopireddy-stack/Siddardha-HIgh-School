@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { FileText, Calendar, Plus, Save, BookOpen, UserCheck, AlertTriangle } from 'lucide-react'
+import { FileText, Calendar, Plus, Save, BookOpen, UserCheck, AlertTriangle, Upload } from 'lucide-react'
 
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { FormField } from '@/components/shared/FormField'
 import { Modal } from '@/components/shared/Modal'
+import { ExcelImportModal } from '@/components/shared/ExcelImportModal'
 import { Badge } from '@/components/ui/Badge'
 import {
   useAcademicYears,
@@ -16,6 +17,7 @@ import {
   useCreateExamSchedule,
   useScheduleMarks,
   useSaveScheduleMarks,
+  useBulkImportExamMarksExcel,
 } from '@/api/hooks'
 
 export function ExaminationsPage() {
@@ -30,6 +32,10 @@ export function ExaminationsPage() {
   // Modals state
   const [isAddExamOpen, setIsAddExamOpen] = useState(false)
   const [isScheduleOpen, setIsScheduleOpen] = useState(false)
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
+
+  const bulkImportMarksMutation = useBulkImportExamMarksExcel()
+
 
   // Marks Entry Form state
   const [marksState, setMarksState] = useState<Record<string, { marks: number; remarks: string }>>({})
@@ -173,15 +179,41 @@ export function ExaminationsPage() {
       title="Examinations"
       description="Configure subject evaluation templates and grade logs."
       actions={
-        <button
-          onClick={() => setIsAddExamOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4" />
-          Create Exam Template
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsExcelModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <Upload className="h-4 w-4" /> Import Marks Excel
+          </button>
+          <button
+            onClick={() => setIsAddExamOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4" />
+            Create Exam Template
+          </button>
+        </div>
       }
     >
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        title="Exam Marks Excel Import"
+        description="Upload an Excel sheet (.xlsx, .xls) or CSV file with student marks for the selected schedule."
+        templateUrl="/exams/marks/bulk-template"
+        templateFileName="exam_marks_import_template.xlsx"
+        onImport={async (file) => {
+          if (!activeScheduleId) {
+            throw new Error('Please select a subject evaluation schedule to grade before uploading marks.')
+          }
+          return await bulkImportMarksMutation.mutateAsync({
+            file,
+            scheduleId: activeScheduleId,
+          })
+        }}
+      />
+
       {/* Filters Header */}
       <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4 dark:border-slate-800 dark:bg-slate-900">
         <div>

@@ -92,6 +92,25 @@ async def send_message(
             sent_count += 1
 
     await db.commit()
+
+    # Trigger real-time WebSocket broadcast
+    try:
+        from app.services.websocket import ws_manager
+        ws_packet = {
+            "type": "new_message",
+            "data": {
+                "title": body.title,
+                "body": body.body,
+                "sender_id": str(current_user.id),
+            }
+        }
+        if body.recipient_id:
+            await ws_manager.send_personal_message(ws_packet, str(body.recipient_id))
+        elif body.recipient_role:
+            await ws_manager.broadcast_to_role(ws_packet, body.recipient_role)
+    except Exception as e:
+        logger.warning(f"Failed to send WS broadcast: {e}")
+
     return success_response(
         data={"sent_count": sent_count},
         message=f"Message sent successfully to {sent_count} user(s)",

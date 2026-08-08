@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { Plus, Navigation, Phone, Play, Square, Compass, RefreshCw } from 'lucide-react'
+import { Plus, Navigation, Phone, Play, Square, Compass, RefreshCw, Upload } from 'lucide-react'
 
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { FormField } from '@/components/shared/FormField'
 import { Modal } from '@/components/shared/Modal'
+import { ExcelImportModal } from '@/components/shared/ExcelImportModal'
 import { DataTable } from '@/components/shared/DataTable'
 import { Badge } from '@/components/ui/Badge'
 import { api } from '@/api/client'
@@ -13,7 +14,9 @@ import {
   useCreateTransportRoute,
   useVehicles,
   useCreateVehicle,
+  useBulkImportTransportRoutesExcel,
 } from '@/api/hooks'
+
 
 type TransportTab = 'routes' | 'vehicles'
 
@@ -80,8 +83,12 @@ export function TransportPage() {
   // Modals state
   const [isAddRouteOpen, setIsAddRouteOpen] = useState(false)
   const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false)
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false)
   const [isTrackingOpen, setIsTrackingOpen] = useState(false)
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
+
+  const bulkImportRoutesMutation = useBulkImportTransportRoutesExcel()
+
 
   // GPS Map states
   const leafletLoaded = useLeaflet()
@@ -274,6 +281,12 @@ export function TransportPage() {
       actions={
         <div className="flex gap-2">
           <button
+            onClick={() => setIsExcelModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <Upload className="h-4 w-4" /> Import Routes Excel
+          </button>
+          <button
             onClick={() => setIsAddRouteOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
           >
@@ -289,6 +302,16 @@ export function TransportPage() {
         </div>
       }
     >
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        title="Transport Routes Excel Import"
+        description="Upload an Excel sheet (.xlsx, .xls) or CSV file with route names, driver contact info, and monthly fares."
+        templateUrl="/ancillary/transport/routes/bulk-template"
+        templateFileName="transport_routes_import_template.xlsx"
+        onImport={async (file) => await bulkImportRoutesMutation.mutateAsync(file)}
+      />
+
       {/* Tabs Selector */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6">
         <button

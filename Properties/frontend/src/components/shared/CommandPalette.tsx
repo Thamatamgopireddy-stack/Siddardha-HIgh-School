@@ -31,7 +31,7 @@ const STATIC_PAGES: SearchResult[] = [
   { id: 'msg', title: 'Messaging Chat', type: 'page', url: '/messaging' },
   { id: 'circ', title: 'Circulars bulletin', type: 'page', url: '/circulars' },
   { id: 'rep', title: 'System Reports', type: 'page', url: '/reports' },
-  { id: 'set', title: 'ERP Settings', type: 'page', url: '/settings' },
+  { id: 'set', title: 'School Settings', type: 'page', url: '/settings' },
   { id: 'dev', title: 'Developer Control Panel', type: 'page', url: '/developer' },
 ]
 
