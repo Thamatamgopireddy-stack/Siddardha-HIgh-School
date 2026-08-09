@@ -60,10 +60,10 @@ async def call_external_llm(user_message: str, db_context: str) -> str | None:
             model = genai.GenerativeModel("gemini-1.5-flash")
             system_instruction = (
                 "You are the official Siddardha High School AI Assistant. "
-                "You MUST act like Gemini/GPT — polite, articulate, intelligent, and formatting with Markdown. "
+                "Respond naturally like Gemini/GPT — polite, concise, articulate, and direct using Markdown. "
+                "IMPORTANT: Answer ONLY the specific question asked. Do NOT dump unnecessary metrics or lists of example questions. "
                 "CRITICAL CONSTRAINT: You must answer questions ONLY based on Siddardha High School data. "
-                "If the user asks non-school or external trivia questions (e.g. general science, coding, politics, weather, recipes), "
-                "you MUST politely refuse and state that you only answer questions related to Siddardha High School records.\n\n"
+                "If the user asks non-school or external trivia questions, politely decline in 1 short sentence.\n\n"
                 f"LIVE SCHOOL DATABASE CONTEXT:\n{db_context}"
             )
             prompt = f"{system_instruction}\n\nUSER QUESTION: {user_message}"
@@ -85,7 +85,8 @@ async def call_external_llm(user_message: str, db_context: str) -> str | None:
                         "role": "system",
                         "content": (
                             "You are the official Siddardha High School AI Assistant. "
-                            "Format responses elegantly in Gemini/GPT style with Markdown. "
+                            "Respond naturally like Gemini/GPT — concise, direct, and focused strictly on the question asked. "
+                            "Do NOT output unnecessary system stats or unrelated overview data. "
                             "STRICT CONSTRAINT: Answer ONLY using the provided Siddardha High School data. "
                             "If asked out-of-scope non-school queries, politely decline."
                         )
@@ -114,17 +115,28 @@ async def chat_assistant(
     current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user_name = f"{current_user.first_name} {current_user.last_name}" if current_user else "Administrator"
+    user_name = f"{current_user.first_name} {current_user.last_name}" if current_user else "Admin"
     query_str = body.message.strip()
     q_lower = query_str.lower()
 
-    # Gather live system stats for context
+    # 1. SIMPLE GREETINGS (Keep responses short & friendly, no data dumps!)
+    if q_lower in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "hi there", "hello there", "namaste"]:
+        reply = f"Hello **{user_name}**! 👋 How can I help you with Siddardha High School data today?"
+        return success_response(data={"response": reply})
+
+    if q_lower in ["who are you", "what are you", "what can you do"]:
+        reply = (
+            f"I am the **Siddardha High School AI Assistant**.\n"
+            f"I can help you search student records, check fee collections, attendance stats, staff directory, exam marks, transport, hostels, and circulars."
+        )
+        return success_response(data={"response": reply})
+
+    # Gather live system stats for context (used for context or explicit overview requests)
     tot_students = (await db.execute(select(func.count(Student.id)).where(Student.is_deleted.is_(False)))).scalar() or 0
     tot_staff = (await db.execute(select(func.count(Staff.id)).where(Staff.is_deleted.is_(False)))).scalar() or 0
     tot_revenue = float((await db.execute(select(func.sum(FeePayment.amount_paid)).where(FeePayment.is_deleted.is_(False)))).scalar() or 0.0)
     tot_exams = (await db.execute(select(func.count(Exam.id)).where(Exam.is_deleted.is_(False)))).scalar() or 0
     tot_books = (await db.execute(select(func.count(Book.id)).where(Book.is_deleted.is_(False)))).scalar() or 0
-    tot_classes = (await db.execute(select(func.count(SchoolClass.id)))).scalar() or 0
 
     db_summary = (
         f"School Name: Siddardha High School\n"
@@ -137,53 +149,30 @@ async def chat_assistant(
         f"Library Catalog Size: {tot_books} books\n"
     )
 
-    # 1. Check if external LLM (Gemini or OpenAI API) is configured
+    # Check external LLM first if configured
     llm_response = await call_external_llm(query_str, db_summary)
     if llm_response:
         return success_response(data={"response": llm_response})
 
-    # 2. Advanced Internal Gemini/GPT-style School AI Agent Engine
+    # 2. INTERNAL INTENT & QUESTION-FOCUSED ENGINE
     try:
-        # Check non-school / out-of-scope queries first
+        # Check non-school / out-of-scope queries
         non_school_keywords = [
             "capital of", "weather in", "recipe", "who is the president", "cricket world cup",
             "write code for", "tell me a joke", "movie", "song", "who created earth", "python script",
-            "solve math equation x^2", "quantum physics", "bitcoin", "crypto"
+            "solve math equation", "quantum physics", "bitcoin", "crypto"
         ]
         if any(k in q_lower for k in non_school_keywords):
-            reply = (
-                f"### 🤖 Siddardha High School AI Assistant\n\n"
-                f"Hello **{user_name}**! I am an AI assistant specifically trained for **Siddardha High School**.\n\n"
-                f"🔒 **Domain Guardrail Notice:**\n"
-                f"I am restricted to answering questions strictly regarding **Siddardha High School data**, "
-                f"including student records, fee collections, attendance registers, staff directory, exam marks, transport, and notices.\n\n"
-                f"How can I assist you with your school records today?"
-            )
+            reply = "I am the **Siddardha High School AI Assistant** and can only assist with Siddardha High School data and records. How can I help you with school data today?"
             return success_response(data={"response": reply})
 
-        # GREETINGS
-        if q_lower in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "who are you", "help"]:
-            reply = (
-                f"### 👋 Welcome to Siddardha High School AI Assistant\n\n"
-                f"Hello **{user_name}**! I am your intelligent AI query engine with real-time access to the live school database.\n\n"
-                f"#### 📊 Current Live Database Snapshot:\n"
-                f"- 🎓 **Active Students:** {tot_students} registered\n"
-                f"- 👥 **Faculty & Staff:** {tot_staff} active members\n"
-                f"- 💳 **Total Fee Revenue:** ₹{tot_revenue:,.2f}\n"
-                f"- 🏫 **Classes & Sections:** Class 6 to 10 (A, B, G)\n"
-                f"- 📖 **Library Catalog:** {tot_books} books\n\n"
-                f"#### 💡 Example Queries You Can Ask:\n"
-                f"- *\"Find student Rahul\"*\n"
-                f"- *\"Show total fee collection summary\"*\n"
-                f"- *\"What is today's attendance rate?\"*\n"
-                f"- *\"List faculty members in Science department\"*\n"
-                f"- *\"Show scheduled examinations\"*\n"
-                f"- *\"List notices published on notice board\"*"
-            )
+        # TOTAL STUDENT COUNT ONLY
+        if any(k in q_lower for k in ["count", "how many", "total number", "number of"]) and any(k in q_lower for k in ["student", "enrolled", "kid", "child"]):
+            reply = f"There are currently **{tot_students}** registered active students in Siddardha High School."
             return success_response(data={"response": reply})
 
-        # STUDENT QUERIES (search student by name, roll no, admission no, village, gender, class/section)
-        if any(k in q_lower for k in ["student", "enrolled", "roll", "admission", "boy", "girl", "class 6", "class 7", "class 8", "class 9", "class 10", "section", "find", "search", "who is"]):
+        # SPECIFIC STUDENT SEARCH (by name, roll no, admission no, village, etc.)
+        if any(k in q_lower for k in ["student", "enrolled", "roll", "admission", "find", "search", "who is", "class 6", "class 7", "class 8", "class 9", "class 10"]):
             words = [w for w in re.split(r'\W+', query_str) if len(w) > 2 and w.lower() not in ["student", "students", "show", "find", "list", "search", "what", "who", "is", "the", "for", "with", "class", "section"]]
             
             stmt = select(Student).where(Student.is_deleted.is_(False))
@@ -197,33 +186,22 @@ async def chat_assistant(
                     filters.append(Student.address_line1.ilike(f"%{w}%"))
                 stmt = stmt.where(or_(*filters))
 
-            stmt = stmt.order_by(Student.first_name).limit(15)
+            stmt = stmt.order_by(Student.first_name).limit(10)
             res = await db.execute(stmt)
             students = res.scalars().all()
 
             if students:
                 student_rows = "\n".join([
-                    f"1. **{s.first_name} {s.last_name}** — Adm No: `{s.admission_number}` | Roll: `{s.roll_number or 'N/A'}` | Gender: `{s.gender.value if hasattr(s.gender, 'value') else s.gender}` | Contact: `{s.phone or 'N/A'}`"
+                    f"- **{s.first_name} {s.last_name}** | Adm No: `{s.admission_number}` | Roll: `{s.roll_number or 'N/A'}` | Phone: `{s.phone or 'N/A'}`"
                     for s in students
                 ])
-                reply = (
-                    f"### 🎓 Student Directory Search Results\n\n"
-                    f"I searched the live student database for **\"{query_str}\"** and found **{len(students)}** matching record(s) out of **{tot_students}** total registered students:\n\n"
-                    f"{student_rows}\n\n"
-                    f"💡 *Tip: Click on Students in the sidebar for full profiles, document attachments, and promotion management.*"
-                )
+                reply = f"### 🎓 Matching Students ({len(students)} found):\n{student_rows}"
             else:
-                reply = (
-                    f"### 🎓 Student Search Results\n\n"
-                    f"No matching student records found for **\"{query_str}\"**.\n\n"
-                    f"- **Total Registered Students in Database:** {tot_students}\n"
-                    f"- **Supported Search Fields:** First Name, Last Name, Admission Number, Roll Number, Village Name.\n\n"
-                    f"💡 *You can add or import new students using the **Admissions** or **Students** module.*"
-                )
+                reply = f"No student records found matching **\"{query_str}\"**. (Total registered students in database: **{tot_students}**)."
             return success_response(data={"response": reply})
 
         # FEE & FINANCIAL QUERIES
-        elif any(k in q_lower for k in ["fee", "payment", "collection", "due", "balance", "amount", "revenue", "paid", "receipt", "account"]):
+        elif any(k in q_lower for k in ["fee", "payment", "collection", "due", "balance", "revenue", "paid", "receipt"]):
             fee_count = (await db.execute(select(func.count(FeePayment.id)).where(FeePayment.is_deleted.is_(False)))).scalar() or 0
             structures_res = await db.execute(select(FeeStructure).where(FeeStructure.is_deleted.is_(False)))
             structures = structures_res.scalars().all()
@@ -233,61 +211,42 @@ async def chat_assistant(
                 for fs in structures
             ]) if structures else "No fee structures configured."
 
-            payments_res = await db.execute(
-                select(FeePayment).where(FeePayment.is_deleted.is_(False)).order_by(FeePayment.created_at.desc()).limit(5)
-            )
-            recent_payments = payments_res.scalars().all()
-
-            payment_rows = "\n".join([
-                f"- Receipt `{p.receipt_number}` | Amount: **₹{float(p.amount_paid):,.2f}** | Date: `{p.payment_date}`"
-                for p in recent_payments
-            ]) if recent_payments else "No recent payment receipts logged."
-
             reply = (
-                f"### 💳 Fee Collections & Financial Analytics\n\n"
-                f"- 💰 **Total Revenue Collected:** **₹{tot_revenue:,.2f}**\n"
-                f"- 🧾 **Total Receipts Logged:** **{fee_count}** payments\n\n"
-                f"#### 📋 Active School Fee Structures:\n{struct_rows}\n\n"
-                f"#### 🕒 Recent Payment Receipts:\n{payment_rows}\n\n"
-                f"💡 *Manage fee collections, generate receipts, or view pending balances in the **Fees & Accounts** section.*"
+                f"### 💳 Fee Summary\n"
+                f"- **Total Revenue Collected:** **₹{tot_revenue:,.2f}** ({fee_count} receipts logged)\n\n"
+                f"#### Active Fee Structures:\n{struct_rows}"
             )
             return success_response(data={"response": reply})
 
         # ATTENDANCE QUERIES
-        elif any(k in q_lower for k in ["attendance", "absent", "present", "leave", "daily", "assembly"]):
+        elif any(k in q_lower for k in ["attendance", "absent", "present", "leave"]):
             total_att = (await db.execute(select(func.count(Attendance.id)))).scalar() or 0
             present_count = (await db.execute(select(func.count(Attendance.id)).where(Attendance.status == "present"))).scalar() or 0
             absent_count = (await db.execute(select(func.count(Attendance.id)).where(Attendance.status == "absent"))).scalar() or 0
-
             rate = (present_count / total_att * 100.0) if total_att > 0 else 95.0
 
             reply = (
-                f"### 📅 Daily Attendance Summary & Insights\n\n"
-                f"- 📊 **Overall Attendance Rate:** **{rate:.1f}%**\n"
-                f"- ✅ **Present Logs:** {present_count}\n"
-                f"- ❌ **Absent Logs:** {absent_count}\n"
-                f"- 📝 **Total Logged Entries:** {total_att}\n\n"
-                f"💡 *Mark daily class registers or send automatic SMS alerts to absent parents in the **Attendance** module.*"
+                f"### 📅 Attendance Overview\n"
+                f"- **Attendance Rate:** **{rate:.1f}%**\n"
+                f"- **Present:** {present_count} | **Absent:** {absent_count} | **Total Logs:** {total_att}"
             )
             return success_response(data={"response": reply})
 
         # EXAMINATIONS & MARKS
-        elif any(k in q_lower for k in ["exam", "mark", "grade", "score", "result", "topper", "pass", "test"]):
+        elif any(k in q_lower for k in ["exam", "mark", "grade", "score", "result", "topper", "test"]):
             exams_res = await db.execute(select(Exam).where(Exam.is_deleted.is_(False)))
             exams = exams_res.scalars().all()
             total_marks_cnt = (await db.execute(select(func.count(ExamMark.id)))).scalar() or 0
 
             exam_rows = "\n".join([
-                f"- **{e.name}** | Type: `{e.exam_type}` | Published: `{e.is_published}`"
+                f"- **{e.name}** ({e.exam_type})"
                 for e in exams
-            ]) if exams else "No examination schedules created."
+            ]) if exams else "No exams scheduled."
 
             reply = (
-                f"### 📚 Examinations & Academic Performance\n\n"
-                f"- 📝 **Scheduled/Recorded Exams:** {len(exams)}\n"
-                f"- 📊 **Student Subject Marks Recorded:** {total_marks_cnt}\n\n"
-                f"#### 📅 Active Examination Modules:\n{exam_rows}\n\n"
-                f"💡 *Configure exam timetables, record marks, or print report cards in the **Examinations** module.*"
+                f"### 📚 Examinations ({len(exams)} scheduled)\n"
+                f"Total Marks Records: **{total_marks_cnt}**\n\n"
+                f"{exam_rows}"
             )
             return success_response(data={"response": reply})
 
@@ -299,83 +258,77 @@ async def chat_assistant(
             staff_members = staff_res.all()
 
             staff_rows = "\n".join([
-                f"- **{user.first_name} {user.last_name}** | Emp ID: `{staff.employee_id}` | Department: `{staff.department or 'General'}` | Role: `{user.role.value if hasattr(user.role, 'value') else user.role}`"
+                f"- **{user.first_name} {user.last_name}** | Dept: `{staff.department or 'General'}` | Emp ID: `{staff.employee_id}`"
                 for staff, user in staff_members
-            ]) if staff_members else "No faculty staff profiles created."
+            ]) if staff_members else "No staff records registered."
 
             reply = (
-                f"### 👥 Faculty & Staff Directory\n\n"
-                f"- 🏫 **Total Active Staff:** **{tot_staff}** members\n\n"
-                f"#### 📋 Faculty Members:\n{staff_rows}\n\n"
-                f"💡 *Manage staff profiles, designations, leave applications, and monthly salaries in **HR & Payroll**.*"
+                f"### 👥 Staff Directory ({tot_staff} total)\n{staff_rows}"
             )
             return success_response(data={"response": reply})
 
-        # ANCILLARY (LIBRARY / TRANSPORT / HOSTELS)
-        elif any(k in q_lower for k in ["book", "library", "bus", "transport", "route", "vehicle", "hostel", "room"]):
+        # LIBRARY / BOOKS ONLY
+        elif any(k in q_lower for k in ["book", "library"]):
             books_res = await db.execute(select(Book).where(Book.is_deleted.is_(False)).limit(5))
             books = books_res.scalars().all()
-            book_rows = "\n".join([f"- **{b.title}** by *{b.author}* (Available: {b.available_quantity}/{b.quantity})" for b in books]) if books else "No books cataloged."
+            book_rows = "\n".join([f"- **{b.title}** by *{b.author}* (Available: {b.available_quantity}/{b.quantity})" for b in books]) if books else "No books in library."
 
+            reply = f"### 📖 Library Books ({tot_books} total cataloged):\n{book_rows}"
+            return success_response(data={"response": reply})
+
+        # TRANSPORT / BUSES ONLY
+        elif any(k in q_lower for k in ["bus", "transport", "route", "vehicle"]):
             routes_res = await db.execute(select(TransportRoute).where(TransportRoute.is_deleted.is_(False)).limit(5))
             routes = routes_res.scalars().all()
             route_rows = "\n".join([f"- **{r.name}** ({r.start_point} &rarr; {r.end_point})" for r in routes]) if routes else "No transport routes."
 
+            reply = f"### 🚌 Transport Routes:\n{route_rows}"
+            return success_response(data={"response": reply})
+
+        # HOSTELS ONLY
+        elif any(k in q_lower for k in ["hostel", "room"]):
             hostels_res = await db.execute(select(Hostel).where(Hostel.is_deleted.is_(False)))
             hostels = hostels_res.scalars().all()
             hostel_rows = "\n".join([f"- **{h.name}** ({h.hostel_type.title()} Hostel, Capacity: {h.capacity})" for h in hostels]) if hostels else "No hostels configured."
 
-            reply = (
-                f"### 🏫 Campus Facilities & Ancillary Services\n\n"
-                f"#### 📖 Library Catalog ({tot_books} books total):\n{book_rows}\n\n"
-                f"#### 🚌 Transport Network:\n{route_rows}\n\n"
-                f"#### 🏢 Residential Hostels:\n{hostel_rows}\n\n"
-                f"💡 *Manage book issue/return, bus routes, or hostel room allocations in their respective sidebar modules.*"
-            )
+            reply = f"### 🏢 Hostels:\n{hostel_rows}"
             return success_response(data={"response": reply})
 
-        # NOTICE BOARD & CIRCULARS
-        elif any(k in q_lower for k in ["notice", "board", "circular", "announcement", "news"]):
+        # NOTICES ONLY
+        elif any(k in q_lower for k in ["notice", "board", "circular", "announcement"]):
             circ_res = await db.execute(select(Circular).where(Circular.is_published.is_(True), Circular.is_deleted.is_(False)).limit(5))
             circulars = circ_res.scalars().all()
 
             circ_rows = "\n".join([
-                f"- 📢 **{c.title}** | Target: `{c.target_role}`"
+                f"- 📢 **{c.title}** (Target: {c.target_role})"
                 for c in circulars
-            ]) if circulars else "No notices published yet."
+            ]) if circulars else "No active announcements."
 
+            reply = f"### 📢 Notice Board:\n{circ_rows}"
+            return success_response(data={"response": reply})
+
+        # EXPLICIT SYSTEM OVERVIEW
+        elif any(k in q_lower for k in ["overview", "summary", "dashboard", "system status"]):
             reply = (
-                f"### 📢 Notice Board & Official Circulars\n\n"
-                f"#### Active Published Announcements:\n{circ_rows}\n\n"
-                f"💡 *Publish school announcements or attach PDF circulars in the **Noticeboard** section.*"
+                f"### 🏫 Siddardha High School System Overview\n"
+                f"- 🎓 **Students:** {tot_students} registered\n"
+                f"- 👥 **Staff:** {tot_staff} active\n"
+                f"- 💳 **Revenue:** ₹{tot_revenue:,.2f}\n"
+                f"- 📚 **Exams:** {tot_exams} scheduled\n"
+                f"- 📖 **Library:** {tot_books} books"
             )
             return success_response(data={"response": reply})
 
-        # DEFAULT SYSTEM EXECUTIVE OVERVIEW
+        # DEFAULT FALLBACK FOR UNRECOGNIZED SCHOOL QUERY
         else:
-            reply = (
-                f"### 🏫 Siddardha High School Live System Dashboard\n\n"
-                f"Hello **{user_name}**! Here is the latest executive summary from our live SQL database:\n\n"
-                f"- 🎓 **Registered Students:** **{tot_students}** active students\n"
-                f"- 👥 **Faculty & Staff:** **{tot_staff}** staff members\n"
-                f"- 💳 **Total Fee Revenue:** **₹{tot_revenue:,.2f}**\n"
-                f"- 📚 **Examinations Scheduled:** **{tot_exams}** exams\n"
-                f"- 📖 **Library Books:** **{tot_books}** cataloged\n\n"
-                f"#### 💡 How I can help you:\n"
-                f"You can ask me questions about Siddardha High School data in natural conversational language. For example:\n"
-                f"- *\"Find student Rahul\"*\n"
-                f"- *\"Show fee collection summary\"*\n"
-                f"- *\"What is today's attendance rate?\"*\n"
-                f"- *\"List faculty members\"*\n"
-                f"- *\"Show available library books\"*"
-            )
+            reply = f"I couldn't find specific records matching **\"{query_str}\"**. Please try asking specifically about students, fees, attendance, staff, exams, or notices."
             return success_response(data={"response": reply})
 
     except Exception as e:
         logger.error(f"Error executing AI query: {e}")
         return success_response(
             data={
-                "response": f"I encountered an error querying the database ({e}). Please try rephrasing your question."
+                "response": "I encountered an error querying the database. Please try rephrasing your question."
             }
         )
 
