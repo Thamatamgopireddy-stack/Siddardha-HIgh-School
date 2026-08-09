@@ -279,7 +279,8 @@ else:
                 <li>Set the <strong>Build Command</strong> to:</li>
             </ol>
         </div>
-        <div class="code-block">bash Properties/backend/build.sh</div>
+        <div class="code-block">bash build.sh</div>
+        <p style="font-size: 0.85rem; color: #64748b;">(Or if Root Directory is empty: <code>bash Properties/backend/build.sh</code>)</p>
         <p style="font-size: 0.85rem; color: #64748b;">Save changes and click <strong>Manual Deploy &rarr; Deploy latest commit</strong>.</p>
     </div>
 </body>
