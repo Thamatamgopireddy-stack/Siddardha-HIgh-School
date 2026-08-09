@@ -10,8 +10,8 @@ export const API_URL =
     ? window.location.origin
     : 'http://127.0.0.1:8000')
 
-// Default use_mock_api to 'false' so all clients connect to central database dynamically
-if (typeof window !== 'undefined' && localStorage.getItem('use_mock_api') === null) {
+// Always use real central Backend API database so student data is permanently saved
+if (typeof window !== 'undefined') {
   localStorage.setItem('use_mock_api', 'false')
 }
 
