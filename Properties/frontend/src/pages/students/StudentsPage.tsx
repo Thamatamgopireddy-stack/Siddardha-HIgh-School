@@ -501,15 +501,18 @@ export function StudentsPage() {
           {/* Classes Cards Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {classes?.map((cls) => {
-              const secTemplates = [
-                { name: 'A', desc: 'Section A (General)', isGirls: false },
-                { name: 'B', desc: 'Section B (General)', isGirls: false },
-                { name: 'G', desc: 'Section G (Girls Section)', isGirls: true },
-              ]
-
               // Calculate total students in this class across all its sections
               const clsSections = allSections?.filter((s) => s.class_id === cls.id) || []
               const totalClassStudents = clsSections.reduce((sum, s) => sum + (sectionCounts[s.id] || 0), 0)
+
+              // Build dynamic section display list (merging predefined A, B, G with any imported sections like C)
+              const secList = [...clsSections]
+              ;['A', 'B', 'G'].forEach((stdName) => {
+                if (!secList.some((s) => s.name.trim().toUpperCase() === stdName)) {
+                  secList.push({ id: `${cls.id}-${stdName}`, class_id: cls.id, name: stdName })
+                }
+              })
+              secList.sort((a, b) => a.name.localeCompare(b.name))
 
               return (
                 <div
@@ -534,31 +537,21 @@ export function StudentsPage() {
 
                   {/* Sections List */}
                   <div className="p-4 space-y-3 flex-1">
-                    {secTemplates.map((tmpl) => {
-                      const matchedSec = allSections?.find((s) => {
-                        if (s.class_id !== cls.id) return false
-                        const sName = s.name.trim().toUpperCase()
-                        const tName = tmpl.name.trim().toUpperCase()
-                        return sName === tName || sName === `SECTION ${tName}` || sName.startsWith(tName) || sName.endsWith(tName)
-                      })
-                      const secId = matchedSec ? matchedSec.id : `${cls.id}-${tmpl.name}`
-                      const count = matchedSec ? (sectionCounts[matchedSec.id] || 0) : 0
+                    {secList.map((sec) => {
+                      const isGirls = sec.name.trim().toUpperCase() === 'G'
+                      const count = sectionCounts[sec.id] || 0
 
                       return (
                         <button
-                          key={tmpl.name}
+                          key={sec.id}
                           type="button"
                           onClick={() => {
                             setSelectedClass(cls.id)
-                            if (matchedSec) {
-                              setSelectedSection(matchedSec.id)
-                            } else {
-                              setSelectedSection(secId)
-                            }
+                            setSelectedSection(sec.id)
                             setViewMode('grid')
                           }}
                           className={`w-full flex items-center justify-between rounded-xl border p-3 text-left transition ${
-                            tmpl.isGirls
+                            isGirls
                               ? 'border-rose-200 bg-rose-50/40 hover:bg-rose-100/60 dark:border-rose-900/40 dark:bg-rose-950/20 dark:hover:bg-rose-950/40'
                               : 'border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:bg-slate-800'
                           }`}
@@ -566,35 +559,35 @@ export function StudentsPage() {
                           <div className="flex items-center gap-3">
                             <div
                               className={`flex h-8 w-8 items-center justify-center rounded-lg font-bold text-xs ${
-                                tmpl.isGirls
+                                isGirls
                                   ? 'bg-rose-600 text-white'
-                                  : tmpl.name === 'A'
+                                  : sec.name.toUpperCase() === 'A'
                                   ? 'bg-indigo-600 text-white'
                                   : 'bg-blue-600 text-white'
                               }`}
                             >
-                              {tmpl.name}
+                              {sec.name}
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-bold text-slate-900 dark:text-white">
-                                  Section {tmpl.name}
+                                  Section {sec.name}
                                 </span>
-                                {tmpl.isGirls && (
+                                {isGirls && (
                                   <span className="rounded bg-rose-100 px-1.5 py-0.2 text-3xs font-bold uppercase text-rose-700 dark:bg-rose-900/60 dark:text-rose-300">
                                     Girls Only
                                   </span>
                                 )}
                               </div>
                               <span className="text-2xs text-slate-500 dark:text-slate-400">
-                                {tmpl.isGirls ? 'Female Roster' : 'General Roster'}
+                                {isGirls ? 'Female Roster' : `Section ${sec.name} Roster`}
                               </span>
                             </div>
                           </div>
 
                           <div className="text-right">
                             <span className={`inline-flex items-center gap-1 text-xs font-bold ${
-                              tmpl.isGirls ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
+                              isGirls ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
                             }`}>
                               {count} {count === 1 ? 'Student' : 'Students'}
                             </span>

@@ -555,7 +555,7 @@ async def _resolve_section_from_row(
         if not k or str(k).startswith("_"):
             continue
         k_norm = "".join(ch.lower() for ch in str(k) if ch.isalnum())
-        if k_norm in ("class", "grade", "standard", "std"):
+        if k_norm in ("class", "grade", "standard", "std", "onlineclass", "cls"):
             class_val = str(v).strip()
         elif k_norm in ("section", "onlinesection", "sec"):
             section_val = str(v).strip()
@@ -565,13 +565,18 @@ async def _resolve_section_from_row(
     cls_num = ""
     sec_let = ""
 
+    # Check if sheet_name is generic like "Sheet19", "Sheet20", "Sheet1"
+    is_generic_sheet = bool(re.match(r'^sheet\s*\d+$', sheet_name, re.IGNORECASE))
+
     # Match sheet name patterns like "6A", "6-B", "Class 6G", "10G", "10-A"
-    match = re.search(r'(\d{1,2}|nursery|lkg|ukg)\s*[-_]?\s*([a-zA-Z])', sheet_name, re.IGNORECASE)
-    if match:
-        cls_num = match.group(1).upper()
-        sec_let = match.group(2).upper()
-    else:
-        match_cls = re.search(r'(\d{1,2}|nursery|lkg|ukg)', class_val or sheet_name, re.IGNORECASE)
+    if not is_generic_sheet:
+        match = re.search(r'(\d{1,2}|nursery|lkg|ukg)\s*[-_]?\s*([a-zA-Z])', sheet_name, re.IGNORECASE)
+        if match:
+            cls_num = match.group(1).upper()
+            sec_let = match.group(2).upper()
+
+    if not cls_num:
+        match_cls = re.search(r'(\d{1,2}|nursery|lkg|ukg)', class_val or (sheet_name if not is_generic_sheet else ""), re.IGNORECASE)
         match_sec = re.search(r'([a-zA-Z])', section_val or "")
         if match_cls:
             cls_num = match_cls.group(1).upper()
@@ -583,6 +588,10 @@ async def _resolve_section_from_row(
             if match_both:
                 cls_num = match_both.group(1).upper()
                 sec_let = match_both.group(2).upper()
+
+    # Reject grade numbers > 12 (e.g., 19, 20, 21 from Sheet19, Sheet20)
+    if cls_num.isdigit() and int(cls_num) > 12:
+        cls_num = ""
 
     if not sec_let:
         sec_let = "A"
