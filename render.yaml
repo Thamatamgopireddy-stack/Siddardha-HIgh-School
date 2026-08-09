@@ -4,7 +4,7 @@ services:
     env: python
     region: singapore
     plan: free
-    buildCommand: "cd Properties/frontend && npm install --include=dev && npm run build && cd ../backend && pip install -r requirements.txt"
+    buildCommand: "bash Properties/backend/build.sh"
     startCommand: "cd Properties/backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /api/v1/health
     envVars:

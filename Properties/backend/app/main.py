@@ -199,42 +199,92 @@ app.include_router(websocket.router, prefix="/api/v1")
 
 
 import os
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 possible_dist_dirs = [
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "dist")),
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "Properties", "frontend", "dist")),
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "frontend", "dist")),
     os.path.abspath(os.path.join(os.getcwd(), "frontend", "dist")),
+    os.path.abspath(os.path.join(os.getcwd(), "dist")),
     os.path.abspath(os.path.join(os.getcwd(), "..", "frontend", "dist")),
     os.path.abspath(os.path.join(os.getcwd(), "Properties", "frontend", "dist")),
     os.path.abspath(os.path.join(os.getcwd(), "..", "Properties", "frontend", "dist")),
+    "/opt/render/project/src/frontend/dist",
     "/opt/render/project/src/Properties/frontend/dist",
 ]
-FRONTEND_DIST_DIR = next((d for d in possible_dist_dirs if os.path.exists(d)), possible_dist_dirs[0])
+FRONTEND_DIST_DIR = next((d for d in possible_dist_dirs if os.path.exists(d)), None)
 
 class SPAStaticFiles(StaticFiles):
-    async def __call__(self, scope, receive, send) -> None:
-        if scope["type"] != "http":
-            return
-        await super().__call__(scope, receive, send)
-
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
-        except (StarletteHTTPException, Exception) as e:
-            if isinstance(e, StarletteHTTPException) and e.status_code == 404:
+            response = await super().get_response(path, scope)
+            if response.status_code == 404:
                 last_segment = path.split("/")[-1] if path else ""
                 if "." not in last_segment:
                     index_path = os.path.join(self.directory or "", "index.html")
                     if os.path.exists(index_path):
                         return FileResponse(index_path)
-            raise e
+            return response
+        except (StarletteHTTPException, Exception):
+            last_segment = path.split("/")[-1] if path else ""
+            if "." not in last_segment:
+                index_path = os.path.join(self.directory or "", "index.html")
+                if os.path.exists(index_path):
+                    return FileResponse(index_path)
+            raise
 
-if os.path.exists(FRONTEND_DIST_DIR):
+if FRONTEND_DIST_DIR and os.path.exists(FRONTEND_DIST_DIR):
+    logger.info(f"Mounted SPA static frontend from: {FRONTEND_DIST_DIR}")
     app.mount("/", SPAStaticFiles(directory=FRONTEND_DIST_DIR, html=True), name="frontend")
 else:
-    logger.warning(f"Frontend dist directory not found at: {FRONTEND_DIST_DIR}. SPA routing is disabled.")
+    logger.warning(
+        "Frontend dist directory not found. SPA routing disabled. "
+        "Ensure 'bash Properties/backend/build.sh' is set as Build Command on Render."
+    )
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def fallback_not_found(full_path: str):
+        if full_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "API endpoint not found"})
+        return HTMLResponse(
+            content="""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siddardha High School - Deployment Notice</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: #1e293b; border-radius: 12px; padding: 32px; max-width: 580px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); border: 1px solid #334155; text-align: center; }
+        h1 { font-size: 1.5rem; color: #38bdf8; margin-top: 0; }
+        p { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; }
+        .code-block { background: #0f172a; color: #4ade80; padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; text-align: left; overflow-x: auto; margin: 16px 0; border: 1px solid #334155; }
+        .steps { text-align: left; background: #0f172a; padding: 16px 20px; border-radius: 8px; font-size: 0.875rem; color: #cbd5e1; margin-top: 16px; }
+        .steps ol { margin: 0; padding-left: 20px; }
+        .steps li { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Siddardha High School Server is Live</h1>
+        <p>The backend API is running, but the frontend React app was not built during deployment on Render.</p>
+        <div class="steps">
+            <strong>To fix this in your Render Dashboard:</strong>
+            <ol>
+                <li>Go to your <strong>Render Dashboard</strong> &rarr; select this Web Service</li>
+                <li>Go to <strong>Settings</strong> &rarr; scroll to <strong>Build Command</strong></li>
+                <li>Set the <strong>Build Command</strong> to:</li>
+            </ol>
+        </div>
+        <div class="code-block">bash Properties/backend/build.sh</div>
+        <p style="font-size: 0.85rem; color: #64748b;">Save changes and click <strong>Manual Deploy &rarr; Deploy latest commit</strong>.</p>
+    </div>
+</body>
+</html>""",
+            status_code=200
+        )
 
 

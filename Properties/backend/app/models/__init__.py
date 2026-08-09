@@ -1,3 +1,11 @@
+from app.core.enums import (
+    UserRole,
+    Gender,
+    Category,
+    AttendanceStatus,
+    LeaveStatus,
+    AdmissionStatus,
+)
 from app.models.academic import AcademicYear, SchoolClass, Section, Subject
 from app.models.admission import Admission
 from app.models.attendance import Attendance
@@ -19,6 +27,12 @@ from app.models.timetable import TimetableEntry
 from app.models.payroll import SalaryStructure, MonthlyPayroll
 
 __all__ = [
+    "UserRole",
+    "Gender",
+    "Category",
+    "AttendanceStatus",
+    "LeaveStatus",
+    "AdmissionStatus",
     "User",
     "Permission",
     "RolePermission",
@@ -55,3 +69,4 @@ __all__ = [
     "SalaryStructure",
     "MonthlyPayroll",
 ]
+

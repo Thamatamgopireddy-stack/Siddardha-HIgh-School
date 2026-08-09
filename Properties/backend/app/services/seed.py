@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import UserRole, Gender, Category
+from app.core.enums import UserRole, Gender, Category, AttendanceStatus
 from app.core.security import hash_password
 from app.models import (
     AcademicYear, Permission, RolePermission, SchoolClass, Section, User,
