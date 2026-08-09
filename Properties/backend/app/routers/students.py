@@ -594,7 +594,10 @@ async def _resolve_section_from_row(
 
     cls_query = await db.execute(
         select(SchoolClass).where(
-            SchoolClass.academic_year_id == academic_year_id,
+            or_(
+                SchoolClass.academic_year_id == academic_year_id,
+                SchoolClass.academic_year_id == str(academic_year_id)
+            ),
             or_(
                 SchoolClass.name.ilike(f"%{cls_num}%"),
                 SchoolClass.name.ilike(cls_name_search)
@@ -602,10 +605,22 @@ async def _resolve_section_from_row(
         )
     )
     school_class = cls_query.scalars().first()
+
+    if not school_class:
+        fallback_cls = await db.execute(
+            select(SchoolClass).where(
+                or_(
+                    SchoolClass.name.ilike(f"%{cls_num}%"),
+                    SchoolClass.name.ilike(cls_name_search)
+                )
+            )
+        )
+        school_class = fallback_cls.scalars().first()
+
     if not school_class:
         school_class = SchoolClass(
             name=cls_name_search,
-            academic_year_id=academic_year_id
+            academic_year_id=str(academic_year_id)
         )
         db.add(school_class)
         await db.flush()
@@ -613,7 +628,11 @@ async def _resolve_section_from_row(
     sec_query = await db.execute(
         select(Section).where(
             Section.class_id == school_class.id,
-            Section.name.ilike(sec_let)
+            or_(
+                Section.name.ilike(sec_let),
+                Section.name.ilike(f"Section {sec_let}"),
+                Section.name.ilike(f"Sec {sec_let}")
+            )
         )
     )
     section = sec_query.scalars().first()

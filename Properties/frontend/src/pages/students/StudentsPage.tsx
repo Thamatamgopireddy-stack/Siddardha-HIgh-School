@@ -535,9 +535,12 @@ export function StudentsPage() {
                   {/* Sections List */}
                   <div className="p-4 space-y-3 flex-1">
                     {secTemplates.map((tmpl) => {
-                      const matchedSec = allSections?.find(
-                        (s) => s.class_id === cls.id && s.name.toUpperCase() === tmpl.name
-                      )
+                      const matchedSec = allSections?.find((s) => {
+                        if (s.class_id !== cls.id) return false
+                        const sName = s.name.trim().toUpperCase()
+                        const tName = tmpl.name.trim().toUpperCase()
+                        return sName === tName || sName === `SECTION ${tName}` || sName.startsWith(tName) || sName.endsWith(tName)
+                      })
                       const secId = matchedSec ? matchedSec.id : `${cls.id}-${tmpl.name}`
                       const count = matchedSec ? (sectionCounts[matchedSec.id] || 0) : 0
 
@@ -608,8 +611,8 @@ export function StudentsPage() {
         </div>
       )}
 
-      {/* VIEW MODE 2: SELECTED SECTION ROSTER OR ALL STUDENTS LIST */}
-      {(selectedSection || viewMode === 'list') && (
+      {/* VIEW MODE 2: STUDENT ROSTER TABLE (Rendered in both Grid and List modes) */}
+      {(selectedSection || viewMode === 'list' || viewMode === 'grid') && (
         <div className="space-y-4">
           {/* Header Banner for Selected Section */}
           {selectedSection && (
@@ -995,10 +998,12 @@ export function StudentsPage() {
               classId: entryClassId || undefined,
               sectionId: entrySectionId || undefined,
             })
-            // Refetch queries so section cards display updated numbers immediately
+            // Refetch queries so section cards & student tables display updated numbers immediately
+            setSelectedClass('')
+            setSelectedSection('')
+            setViewMode('list')
             refreshAllStudentData()
             toast.success(`Bulk import complete! ${res.imported} students assigned to their respective Class & Section rosters.`)
-            setViewMode('grid')
             return res
           }}
         />
