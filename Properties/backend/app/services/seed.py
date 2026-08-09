@@ -107,71 +107,7 @@ async def seed_database(db: AsyncSession) -> None:
             await db.flush()
         subject_map[sub_name] = sub
 
-    # 5. Seed Students
-    student_count = (await db.execute(select(func.count(Student.id)))).scalar() or 0
-    if student_count == 0:
-        logger.info("Seeding realistic student records into database...")
-        sample_students = [
-            ("Rahul", "Sharma", Gender.MALE, "10-A", "2025001", "101"),
-            ("Ananya", "Verma", Gender.FEMALE, "10-A", "2025002", "102"),
-            ("Siddharth", "Reddy", Gender.MALE, "10-A", "2025003", "103"),
-            ("Kavya", "Patel", Gender.FEMALE, "10-B", "2025004", "104"),
-            ("Aarav", "Gupta", Gender.MALE, "10-B", "2025005", "105"),
-            ("Pooja", "Singh", Gender.FEMALE, "9-A", "2025006", "106"),
-            ("Vikram", "Rao", Gender.MALE, "9-A", "2025007", "107"),
-            ("Sneha", "Joshi", Gender.FEMALE, "9-B", "2025008", "108"),
-            ("Rohan", "Mehta", Gender.MALE, "8-A", "2025009", "109"),
-            ("Diya", "Nair", Gender.FEMALE, "8-A", "2025010", "110"),
-            ("Aditya", "Kumar", Gender.MALE, "7-A", "2025011", "111"),
-            ("Ishita", "Chawla", Gender.FEMALE, "7-B", "2025012", "112"),
-            ("Karthik", "Subramanian", Gender.MALE, "6-A", "2025013", "113"),
-            ("Anushree", "Deshmukh", Gender.FEMALE, "6-B", "2025014", "114"),
-            ("Manish", "Gowda", Gender.MALE, "10-G", "2025015", "115"),
-        ]
-
-        seeded_student_objs = []
-        for fname, lname, gender, cls_sec, adm_no, roll_no in sample_students:
-            cls_name, sec_letter = cls_sec.split("-")
-            full_cls_name = f"Class {cls_name}"
-            sec = sec_map.get(f"{full_cls_name}-{sec_letter}")
-            sec_id = sec.id if sec else None
-
-            st = Student(
-                admission_number=f"ADM{adm_no}",
-                academic_year_id=year.id,
-                first_name=fname,
-                last_name=lname,
-                date_of_birth=date(2010, 5, 15),
-                gender=gender,
-                section_id=sec_id,
-                roll_number=roll_no,
-                is_active=True,
-                phone=f"98765{adm_no}",
-                email=f"{fname.lower()}.{lname.lower()}@student.school.edu",
-                category=Category.GENERAL,
-                admission_date=date(2025, 4, 2),
-            )
-            db.add(st)
-            seeded_student_objs.append(st)
-        await db.flush()
-
-        # 6. Seed Attendance Logs for Students
-        logger.info("Seeding sample attendance records...")
-        admin_user = (await db.execute(select(User).where(User.email == "admin@school.edu"))).scalar_one_or_none()
-        admin_id = admin_user.id if admin_user else None
-        for st in seeded_student_objs[:10]:
-            db.add(Attendance(
-                student_id=st.id,
-                section_id=st.section_id,
-                academic_year_id=year.id,
-                date=date.today(),
-                status=AttendanceStatus.PRESENT,
-                remarks="Present in morning assembly",
-                marked_by=admin_id,
-            ))
-        await db.flush()
-
-    # 7. Seed Staff Directory
+    # 5. Staff Directory
     staff_count = (await db.execute(select(func.count(Staff.id)))).scalar() or 0
     if staff_count == 0:
         logger.info("Seeding faculty and staff directory...")
@@ -186,10 +122,10 @@ async def seed_database(db: AsyncSession) -> None:
             ))
         await db.flush()
 
-    # 8. Seed Fee Structures & Payments
+    # 6. Seed Fee Structures
     fee_struct_count = (await db.execute(select(func.count(FeeStructure.id)))).scalar() or 0
     if fee_struct_count == 0:
-        logger.info("Seeding fee structures and payment logs...")
+        logger.info("Seeding fee structures...")
         fee_tuition = FeeStructure(
             academic_year_id=year.id,
             name="Tuition Fee Term 1",
@@ -206,19 +142,6 @@ async def seed_database(db: AsyncSession) -> None:
         )
         db.add(fee_tuition)
         db.add(fee_trans)
-        await db.flush()
-
-        # Add sample payments for students
-        st_res = await db.execute(select(Student).limit(5))
-        st_list = st_res.scalars().all()
-        for idx, st in enumerate(st_list):
-            db.add(FeePayment(
-                student_id=st.id,
-                fee_structure_id=fee_tuition.id,
-                amount_paid=15000.0,
-                payment_date=date.today(),
-                receipt_number=f"REC202500{idx+1}"
-            ))
         await db.flush()
 
     # 9. Seed Examinations & Schedules

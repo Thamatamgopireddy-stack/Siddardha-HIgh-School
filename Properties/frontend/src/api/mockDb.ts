@@ -127,118 +127,9 @@ const DEFAULT_TEACHERS = [
   { id: 't-3', first_name: 'Sunita', last_name: 'Rao', email: 'sunita@school.edu', phone: '9777777777', subject: 'English', department: 'Humanities', is_active: true }
 ]
 
-const DEFAULT_STUDENTS = [
-  {
-    id: 'st-1',
-    admission_number: 'ADM2025001',
-    first_name: 'Siddharth',
-    middle_name: '',
-    last_name: 'Reddy',
-    date_of_birth: '2010-05-15',
-    gender: 'male',
-    roll_number: '10',
-    phone: '9876543210',
-    email: 'siddharth@gmail.com',
-    category: 'general',
-    blood_group: 'O+',
-    nationality: 'Indian',
-    religion: 'Hindu',
-    aadhaar_number: '1234-5678-9012',
-    previous_school: 'Little Flower School',
-    tc_number: 'TC-9988',
-    address_line1: '12-34, Jubilee Hills',
-    city: 'Hyderabad',
-    state: 'Telangana',
-    pincode: '500033',
-    is_active: true,
-    section_id: 's-1',
-    academic_year_id: 'ay-1',
-    profile_photo_url: ''
-  },
-  {
-    id: 'st-2',
-    admission_number: 'ADM2025002',
-    first_name: 'Ananya',
-    middle_name: 'Laxmi',
-    last_name: 'Sharma',
-    date_of_birth: '2010-08-20',
-    gender: 'female',
-    roll_number: '01',
-    phone: '9876543211',
-    email: 'ananya@gmail.com',
-    category: 'general',
-    blood_group: 'A+',
-    nationality: 'Indian',
-    religion: 'Hindu',
-    aadhaar_number: '1234-5678-9013',
-    previous_school: 'Oakridge School',
-    tc_number: 'TC-9989',
-    address_line1: '45, Gachibowli',
-    city: 'Hyderabad',
-    state: 'Telangana',
-    pincode: '500032',
-    is_active: true,
-    section_id: 's-1',
-    academic_year_id: 'ay-1',
-    profile_photo_url: ''
-  },
-  {
-    id: 'st-3',
-    admission_number: 'ADM2025003',
-    first_name: 'Rahul',
-    middle_name: '',
-    last_name: 'Verma',
-    date_of_birth: '2010-12-05',
-    gender: 'male',
-    roll_number: '18',
-    phone: '9876543212',
-    email: 'rahul@gmail.com',
-    category: 'obc',
-    blood_group: 'B+',
-    nationality: 'Indian',
-    religion: 'Hindu',
-    aadhaar_number: '1234-5678-9014',
-    previous_school: 'Delhi Public School',
-    tc_number: 'TC-9990',
-    address_line1: '78, Madhapur',
-    city: 'Hyderabad',
-    state: 'Telangana',
-    pincode: '500081',
-    is_active: true,
-    section_id: 's-2',
-    academic_year_id: 'ay-1',
-    profile_photo_url: ''
-  }
-]
+const DEFAULT_STUDENTS: any[] = []
 
-const DEFAULT_ADMISSIONS = [
-  {
-    id: 'adm-1',
-    application_number: 'APPL2026001',
-    first_name: 'Rohan',
-    last_name: 'Gupta',
-    email: 'rohan.gupta@gmail.com',
-    phone: '9123456789',
-    date_of_birth: '2011-03-14',
-    gender: 'male',
-    applying_for_class_id: 'c-1',
-    status: 'pending',
-    academic_year_id: 'ay-1'
-  },
-  {
-    id: 'adm-2',
-    application_number: 'APPL2026002',
-    first_name: 'Kavya',
-    last_name: 'Sen',
-    email: 'kavya.sen@gmail.com',
-    phone: '9123456788',
-    date_of_birth: '2011-09-18',
-    gender: 'female',
-    applying_for_class_id: 'c-2',
-    status: 'approved',
-    academic_year_id: 'ay-1'
-  }
-]
+const DEFAULT_ADMISSIONS: any[] = []
 
 const DEFAULT_TIMETABLE = [
   { id: 'tt-1', class_id: 'c-1', section_id: 's-1', subject_id: 'sub-1', teacher_id: 't-1', day_of_week: 'Monday', start_time: '09:00', end_time: '09:45', room_number: '101' },
@@ -256,11 +147,7 @@ const DEFAULT_EXAM_SCHEDULES = [
   { id: 'exs-2', exam_id: 'ex-1', subject_id: 'sub-2', section_id: 's-1', exam_date: '2025-09-17', max_marks: 100, pass_marks: 35 }
 ]
 
-const DEFAULT_EXAM_MARKS = [
-  { id: 'm-1', schedule_id: 'exs-1', student_id: 'st-1', marks_obtained: 85, remarks: 'Excellent' },
-  { id: 'm-2', schedule_id: 'exs-1', student_id: 'st-2', marks_obtained: 92, remarks: 'Outstanding' },
-  { id: 'm-3', schedule_id: 'exs-2', student_id: 'st-1', marks_obtained: 78, remarks: 'Good' }
-]
+const DEFAULT_EXAM_MARKS: any[] = []
 
 const DEFAULT_FEE_STRUCTURES = [
   { id: 'fs-1', academic_year_id: 'ay-1', name: 'Term 1 Tuition Fee', amount: 15000, frequency: 'termly', is_mandatory: true },
@@ -268,21 +155,15 @@ const DEFAULT_FEE_STRUCTURES = [
   { id: 'fs-3', academic_year_id: 'ay-1', name: 'Library Fee', amount: 1200, frequency: 'annually', is_mandatory: true }
 ]
 
-const DEFAULT_FEE_PAYMENTS = [
-  { id: 'fp-1', student_id: 'st-1', fee_structure_id: 'fs-1', amount_paid: 15000, payment_date: '2025-04-10', receipt_number: 'REC-20250410-01' },
-  { id: 'fp-2', student_id: 'st-2', fee_structure_id: 'fs-1', amount_paid: 15000, payment_date: '2025-04-12', receipt_number: 'REC-20250412-01' }
-]
+const DEFAULT_FEE_PAYMENTS: any[] = []
 
 const DEFAULT_BOOKS = [
-  { id: 'b-1', title: 'Concepts of Physics (Vol 1)', author: 'H.C. Verma', isbn: '9788177091878', quantity: 10, available: 8 },
-  { id: 'b-2', title: 'Higher Algebra', author: 'Hall & Knight', isbn: '9789351760146', quantity: 5, available: 4 },
+  { id: 'b-1', title: 'Concepts of Physics (Vol 1)', author: 'H.C. Verma', isbn: '9788177091878', quantity: 10, available: 10 },
+  { id: 'b-2', title: 'Higher Algebra', author: 'Hall & Knight', isbn: '9789351760146', quantity: 5, available: 5 },
   { id: 'b-3', title: 'English Grammar & Composition', author: 'Wren & Martin', isbn: '9789352530144', quantity: 15, available: 15 }
 ]
 
-const DEFAULT_BOOK_ISSUES = [
-  { id: 'bi-1', book_id: 'b-1', student_id: 'st-1', issue_date: '2025-06-01', return_date: '', status: 'issued' },
-  { id: 'bi-2', book_id: 'b-2', student_id: 'st-2', issue_date: '2025-06-05', return_date: '2025-06-15', status: 'returned' }
-]
+const DEFAULT_BOOK_ISSUES: any[] = []
 
 const DEFAULT_HOSTELS = [
   { id: 'h-1', name: 'Saraswati Boys Hostel', hostel_type: 'boys', capacity: 100 },
