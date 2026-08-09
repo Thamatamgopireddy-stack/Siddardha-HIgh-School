@@ -294,8 +294,13 @@ async def list_students(
 
     if academic_year_id and str(academic_year_id).strip() not in ("undefined", "null", "", "None"):
         ay_str = str(academic_year_id).strip()
-        query = query.where(Student.academic_year_id == ay_str)
-        count_base = count_base.where(Student.academic_year_id == ay_str)
+        ay_filter = or_(
+            Student.academic_year_id == ay_str,
+            Student.academic_year_id.is_(None),
+            Student.academic_year_id == ""
+        )
+        query = query.where(ay_filter)
+        count_base = count_base.where(ay_filter)
 
     if search and search.strip():
         like = f"%{search.strip()}%"

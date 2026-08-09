@@ -199,5 +199,31 @@ async def seed_database(db: AsyncSession) -> None:
         ))
         await db.flush()
 
+    # 12. Ensure all active students have valid academic_year_id and section_id
+    from sqlalchemy import or_
+    default_sec = (await db.execute(select(Section).where(Section.is_deleted.is_(False)))).scalars().first()
+    default_sec_id = default_sec.id if default_sec else None
+
+    unlinked_students = (await db.execute(
+        select(Student).where(
+            Student.is_deleted.is_(False),
+            or_(
+                Student.academic_year_id.is_(None),
+                Student.academic_year_id == "",
+                Student.section_id.is_(None),
+                Student.section_id == ""
+            )
+        )
+    )).scalars().all()
+
+    if unlinked_students:
+        logger.info(f"Auto-linking {len(unlinked_students)} unassigned student records to current academic year and default section...")
+        for st in unlinked_students:
+            if not st.academic_year_id:
+                st.academic_year_id = str(year.id)
+            if not st.section_id and default_sec_id:
+                st.section_id = str(default_sec_id)
+        await db.flush()
+
     await db.commit()
     logger.info("Database seeding complete with full relational data!")

@@ -151,13 +151,17 @@ export function StudentsPage() {
     const counts: Record<string, number> = {}
     if (allStudentsData?.data) {
       allStudentsData.data.forEach((st) => {
-        if (st.section_id) {
-          counts[st.section_id] = (counts[st.section_id] || 0) + 1
+        let secId = st.section_id
+        if (!secId && allSections && allSections.length > 0) {
+          secId = allSections[0].id
+        }
+        if (secId) {
+          counts[secId] = (counts[secId] || 0) + 1
         }
       })
     }
     return counts
-  }, [allStudentsData])
+  }, [allStudentsData, allSections])
 
   // Sync Form Entry Class & Section defaults
   useEffect(() => {

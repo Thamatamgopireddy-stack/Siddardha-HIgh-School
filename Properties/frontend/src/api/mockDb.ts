@@ -421,8 +421,8 @@ export const mockAdapter = (config: any): Promise<any> => {
       const students = getTable('students')
       const filtered = students.filter(s => {
         let match = true
-        if (params.section_id) match = match && s.section_id === params.section_id
-        if (params.academic_year_id) match = match && s.academic_year_id === params.academic_year_id
+        if (params.section_id) match = match && (s.section_id === params.section_id || !s.section_id)
+        if (params.academic_year_id) match = match && (s.academic_year_id === params.academic_year_id || !s.academic_year_id)
         if (params.search) {
           const sText = params.search.toLowerCase()
           match = match && (
