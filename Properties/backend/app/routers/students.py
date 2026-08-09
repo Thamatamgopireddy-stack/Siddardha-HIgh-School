@@ -269,42 +269,50 @@ async def list_students(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=2000),
     search: str | None = None,
-    section_id: UUID | None = None,
-    academic_year_id: UUID | None = None,
+    section_id: str | None = None,
+    class_id: str | None = None,
+    academic_year_id: str | None = None,
     _: User = Depends(require_permission("students:view")),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.models import Section
     skip = (page - 1) * limit
     query = select(Student).where(Student.is_deleted.is_(False))
     count_base = select(Student).where(Student.is_deleted.is_(False))
 
-    if section_id:
-        query = query.where(Student.section_id == section_id)
-        count_base = count_base.where(Student.section_id == section_id)
-    if academic_year_id:
-        query = query.where(Student.academic_year_id == academic_year_id)
-        count_base = count_base.where(Student.academic_year_id == academic_year_id)
-    if search:
-        like = f"%{search}%"
-        query = query.where(
-            or_(
-                Student.first_name.ilike(like),
-                Student.last_name.ilike(like),
-                Student.admission_number.ilike(like),
-            )
+    if section_id and str(section_id).strip() not in ("undefined", "null", "", "None"):
+        sec_str = str(section_id).strip()
+        query = query.where(Student.section_id == sec_str)
+        count_base = count_base.where(Student.section_id == sec_str)
+    elif class_id and str(class_id).strip() not in ("undefined", "null", "", "None"):
+        cls_str = str(class_id).strip()
+        sec_res = await db.execute(select(Section.id).where(Section.class_id == cls_str, Section.is_deleted.is_(False)))
+        sec_ids = [s[0] for s in sec_res.all()]
+        if sec_ids:
+            query = query.where(Student.section_id.in_(sec_ids))
+            count_base = count_base.where(Student.section_id.in_(sec_ids))
+
+    if academic_year_id and str(academic_year_id).strip() not in ("undefined", "null", "", "None"):
+        ay_str = str(academic_year_id).strip()
+        query = query.where(Student.academic_year_id == ay_str)
+        count_base = count_base.where(Student.academic_year_id == ay_str)
+
+    if search and search.strip():
+        like = f"%{search.strip()}%"
+        search_filter = or_(
+            Student.first_name.ilike(like),
+            Student.last_name.ilike(like),
+            Student.admission_number.ilike(like),
+            Student.roll_number.ilike(like),
+            Student.phone.ilike(like),
         )
-        count_base = count_base.where(
-            or_(
-                Student.first_name.ilike(like),
-                Student.last_name.ilike(like),
-                Student.admission_number.ilike(like),
-            )
-        )
+        query = query.where(search_filter)
+        count_base = count_base.where(search_filter)
 
     from sqlalchemy import func
 
     total = (await db.execute(select(func.count()).select_from(count_base.subquery()))).scalar() or 0
-    result = await db.execute(query.offset(skip).limit(limit))
+    result = await db.execute(query.order_by(Student.first_name.asc()).offset(skip).limit(limit))
     students = result.scalars().all()
     data = [StudentOut.model_validate(s).model_dump(mode="json") for s in students]
     return success_response(
@@ -329,7 +337,12 @@ async def create_student(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Admission number already exists")
 
-    student = Student(**body.model_dump())
+    dump = body.model_dump()
+    dump["academic_year_id"] = str(dump["academic_year_id"])
+    if dump.get("section_id"):
+        dump["section_id"] = str(dump["section_id"])
+
+    student = Student(**dump)
     db.add(student)
     await db.flush()
     await db.refresh(student)
@@ -341,16 +354,23 @@ async def create_student(
 
 @router.get("/export")
 async def export_students(
-    academic_year_id: UUID | None = None,
-    section_id: UUID | None = None,
+    academic_year_id: str | None = None,
+    section_id: str | None = None,
+    class_id: str | None = None,
     _: User = Depends(require_permission("students:export")),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.models import Section
     query = select(Student).where(Student.is_deleted.is_(False))
-    if academic_year_id:
-        query = query.where(Student.academic_year_id == academic_year_id)
-    if section_id:
-        query = query.where(Student.section_id == section_id)
+    if academic_year_id and str(academic_year_id).strip() not in ("undefined", "null", "", "None"):
+        query = query.where(Student.academic_year_id == str(academic_year_id).strip())
+    if section_id and str(section_id).strip() not in ("undefined", "null", "", "None"):
+        query = query.where(Student.section_id == str(section_id).strip())
+    elif class_id and str(class_id).strip() not in ("undefined", "null", "", "None"):
+        sec_res = await db.execute(select(Section.id).where(Section.class_id == str(class_id).strip(), Section.is_deleted.is_(False)))
+        sec_ids = [s[0] for s in sec_res.all()]
+        if sec_ids:
+            query = query.where(Student.section_id.in_(sec_ids))
 
     result = await db.execute(query)
     students = result.scalars().all()

@@ -100,7 +100,8 @@ export function StudentsPage() {
     search,
     selectedSection,
     selectedAcademicYear,
-    limit
+    limit,
+    selectedClass
   )
 
   // Overview Query: fetch all students for the academic year to calculate section & class counts

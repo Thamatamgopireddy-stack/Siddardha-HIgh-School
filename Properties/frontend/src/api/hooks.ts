@@ -73,9 +73,9 @@ export function useSections(classId?: string) {
 }
 
 // Student CRUD hooks
-export function useStudents(page = 1, search = '', sectionId = '', academicYearId = '', limit = 20) {
+export function useStudents(page = 1, search = '', sectionId = '', academicYearId = '', limit = 20, classId = '') {
   return useQuery({
-    queryKey: ['students', page, search, sectionId, academicYearId, limit],
+    queryKey: ['students', page, search, sectionId, academicYearId, limit, classId],
     queryFn: async () => {
       const { data } = await api.get<APIResponse<Student[]>>('/students', {
         params: {
@@ -83,6 +83,7 @@ export function useStudents(page = 1, search = '', sectionId = '', academicYearI
           limit,
           search: search || undefined,
           section_id: sectionId || undefined,
+          class_id: classId || undefined,
           academic_year_id: academicYearId || undefined,
         },
       })
