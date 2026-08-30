@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Progress Report Card</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 15mm;
+    }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      margin: 0;
+      padding: 0;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 12px;
+      margin-bottom: 15px;
+    }
+    .school-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 0;
+    }
+    .school-subtitle {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 3px;
+    }
+    .report-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 8px;
+      color: #2563eb;
+      text-decoration: underline;
+    }
+    .student-info {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .student-info td {
+      padding: 8px 12px;
+      vertical-align: top;
+    }
+    .student-info td strong {
+      color: #475569;
+    }
+    .marks-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .marks-table th {
+      background-color: #1e293b;
+      color: #ffffff;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .marks-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .marks-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    .summary-box {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      border: 1px solid #cbd5e1;
+    }
+    .summary-box td {
+      padding: 10px;
+      text-align: center;
+      background-color: #eff6ff;
+    }
+    .summary-val {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1e40af;
+      margin-top: 2px;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background-color: #2563eb;
+      color: #ffffff;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .signatures {
+      margin-top: 40px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .signatures td {
+      text-align: center;
+      vertical-align: bottom;
+      padding-top: 40px;
+      font-weight: bold;
+      color: #475569;
+    }
+    .signature-line {
+      border-top: 1px solid #94a3b8;
+      width: 80%;
+      margin: 0 auto 5px auto;
+    }
+    .grading-key {
+      margin-top: 25px;
+      font-size: 9px;
+      color: #64748b;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1 class="school-title">SRI RAGAVENDRA HIGH SCHOOL</h1>
+    <div class="school-subtitle">Affiliated to State Board of Secondary Education | Code: HYD-8921</div>
+    <div class="school-subtitle">Campus Address: Main Road, Educational Zone, Hyderabad - 500001</div>
+    <div class="report-title">STUDENT ACADEMIC PERFORMANCE REPORT CARD</div>
+    <div><strong>Exam:</strong> {{ exam_name }}</div>
+  </div>
+
+  <!-- Student Info Card -->
+  <table class="student-info">
+    <tr>
+      <td><strong>Student Name:</strong> {{ student_name }}</td>
+      <td><strong>Admission No:</strong> {{ admission_number }}</td>
+    </tr>
+    <tr>
+      <td><strong>Class & Section:</strong> {{ class_name }} - {{ section_name }}</td>
+      <td><strong>Roll Number:</strong> {{ roll_number or '—' }}</td>
+    </tr>
+    <tr>
+      <td><strong>Date of Birth:</strong> {{ dob }}</td>
+      <td><strong>Academic Year:</strong> {{ academic_year }}</td>
+    </tr>
+  </table>
+
+  <!-- Subject Marks Table -->
+  <table class="marks-table">
+    <thead>
+      <tr>
+        <th style="width: 40%;">Subject Name</th>
+        <th style="width: 20%; text-align: center;">Max Marks</th>
+        <th style="width: 20%; text-align: center;">Pass Marks</th>
+        <th style="width: 20%; text-align: center;">Marks Obtained</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in subject_marks %}
+      <tr>
+        <td><strong>{{ item.subject_name }}</strong> ({{ item.subject_code }})</td>
+        <td style="text-align: center;">{{ item.max_marks }}</td>
+        <td style="text-align: center;">{{ item.pass_marks }}</td>
+        <td style="text-align: center; font-weight: bold; color: {% if item.marks_obtained < item.pass_marks %}#dc2626{% else %}#16a34a{% endif %};">
+          {{ item.marks_obtained }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Performance Summary -->
+  <table class="summary-box">
+    <tr>
+      <td>
+        <div>TOTAL MARKS OBTAINED</div>
+        <div class="summary-val">{{ total_obtained }} / {{ total_max }}</div>
+      </td>
+      <td>
+        <div>OVERALL PERCENTAGE</div>
+        <div class="summary-val">{{ percentage }}%</div>
+      </td>
+      <td>
+        <div>FINAL GRADE</div>
+        <div class="summary-val"><span class="grade-badge">{{ grade }}</span></div>
+      </td>
+      <td>
+        <div>RESULT STATUS</div>
+        <div class="summary-val" style="color: {% if is_passed %}#16a34a{% else %}#dc2626{% endif %};">
+          {% if is_passed %}PASSED{% else %}NEEDS IMPROVEMENT{% endif %}
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Teacher Remarks -->
+  <div style="margin-bottom: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px;">
+    <strong>Class Teacher Remarks:</strong>
+    <p style="margin: 5px 0 0 0; color: #334155; font-style: italic;">
+      {{ remarks or 'Demonstrated consistent performance. Encouraged to focus on conceptual clarity for continued academic success.' }}
+    </p>
+  </div>
+
+  <!-- Signatures -->
+  <table class="signatures">
+    <tr>
+      <td style="width: 33%;">
+        <div class="signature-line"></div>
+        Class Teacher
+      </td>
+      <td style="width: 33%;">
+        <div class="signature-line"></div>
+        Parent / Guardian
+      </td>
+      <td style="width: 33%;">
+        <div class="signature-line"></div>
+        Principal / Headmaster
+      </td>
+    </tr>
+  </table>
+
+  <!-- Grading Key Legend -->
+  <div class="grading-key">
+    <strong>CBSE Grading Scale:</strong> A1 (91-100%) | A2 (81-90%) | B1 (71-80%) | B2 (61-70%) | C1 (51-60%) | C2 (41-50%) | D (33-40% Pass) | E (<33% Failed)
+  </div>
+
+</body>
+</html>
