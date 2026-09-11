@@ -483,9 +483,9 @@ export function useScheduleMarks(scheduleId?: string) {
   return useQuery({
     queryKey: ['schedule-marks', scheduleId],
     queryFn: async () => {
-      if (!scheduleId) return []
-      const { data } = await api.get<APIResponse<any[]>>(`/exams/schedules/${scheduleId}/marks`)
-      return data.data || []
+      if (!scheduleId) return null
+      const { data } = await api.get<APIResponse<any>>(`/exams/schedules/${scheduleId}/marks`)
+      return data.data || null
     },
     enabled: !!scheduleId,
   })
@@ -627,7 +627,7 @@ export function useFeeStructures(academicYearId?: string) {
 export function useCreateFeeStructure() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (payload: { academic_year_id: string; name: string; amount: number; frequency: string; is_mandatory?: boolean }) => {
+    mutationFn: async (payload: { academic_year_id: string; class_id?: string; name: string; fee_head?: string; amount: number; due_date?: string; frequency: string; is_mandatory?: boolean }) => {
       const { data } = await api.post<APIResponse<any>>('/fees/structures', payload)
       return data.data
     },
@@ -1005,5 +1005,28 @@ export function useDevLogs() {
       return data.data || []
     },
     refetchInterval: 5000,
+  })
+}
+
+// Portal Consolidated Hooks
+export function usePortalOverview(studentId?: string) {
+  return useQuery({
+    queryKey: ['portal-overview', studentId],
+    queryFn: async () => {
+      const { data } = await api.get<APIResponse<any>>('/portal/overview', {
+        params: studentId ? { student_id: studentId } : undefined,
+      })
+      return data.data
+    },
+  })
+}
+
+export function useMyChildren() {
+  return useQuery({
+    queryKey: ['my-children'],
+    queryFn: async () => {
+      const { data } = await api.get<APIResponse<any[]>>('/portal/my-children')
+      return data.data || []
+    },
   })
 }

@@ -63,8 +63,8 @@ export function ExaminationsPage() {
     setSelectedAcademicYear(current ? current.id : academicYears[0].id)
   }
 
-  const marksRecords = scheduleMarksData?.students || []
-  const maxMarksAllowed = scheduleMarksData?.max_marks || 100
+  const marksRecords = (scheduleMarksData as any)?.students || []
+  const maxMarksAllowed = (scheduleMarksData as any)?.max_marks || 100
 
   // Form inputs
   const [examForm, setExamForm] = useState({ name: '', exam_type: 'Mid-Term' })

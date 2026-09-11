@@ -270,7 +270,7 @@ export function FeesPage() {
                   { accessorKey: 'transaction_reference', header: 'Ref ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.transaction_reference || '—'}</span> },
                 ]}
                 data={myDues?.payments || []}
-                rowActions={(row) => (
+                rowActions={(row: any) => (
                   <button
                     onClick={() => handleDownloadReceipt(row.id)}
                     className="flex items-center gap-1 px-3 py-1.5 text-xs text-accent hover:underline font-medium"

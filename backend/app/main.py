@@ -191,7 +191,13 @@ import os
 from fastapi.responses import FileResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-FRONTEND_DIST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+candidate_dirs = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static_frontend")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "static_frontend")),
+]
+
+FRONTEND_DIST_DIR = next((d for d in candidate_dirs if os.path.exists(d)), None)
 
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
@@ -206,8 +212,9 @@ class SPAStaticFiles(StaticFiles):
                         return FileResponse(index_path)
             raise e
 
-if os.path.exists(FRONTEND_DIST_DIR):
+if FRONTEND_DIST_DIR and os.path.exists(FRONTEND_DIST_DIR):
     app.mount("/", SPAStaticFiles(directory=FRONTEND_DIST_DIR, html=True), name="frontend")
+    logger.info(f"Frontend SPA mounted from: {FRONTEND_DIST_DIR}")
 else:
-    logger.warning(f"Frontend dist directory not found at: {FRONTEND_DIST_DIR}. SPA routing is disabled.")
+    logger.warning("Frontend dist directory not found. SPA routing is disabled.")
 

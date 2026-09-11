@@ -4,7 +4,7 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { StatCard } from '@/components/shared/StatCard'
 import { useAuthStore } from '@/store'
-import { useAIChat } from '@/api/hooks'
+import { useAIChat, useDashboardStats } from '@/api/hooks'
 import { ParentStudentPortal } from '@/pages/portal/ParentStudentPortal'
 
 const enrollmentData = [
