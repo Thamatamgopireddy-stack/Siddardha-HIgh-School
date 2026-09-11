@@ -40,13 +40,40 @@ async def get_school_classes(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_permission("students:view"))
 ):
-    from app.models.academic import SchoolClass
+    from app.models.academic import SchoolClass, Section
+    from app.models.student import Student
+    from sqlalchemy import func
+
     query = select(SchoolClass).where(SchoolClass.is_deleted.is_(False))
     if academic_year_id:
         query = query.where(SchoolClass.academic_year_id == str(academic_year_id))
     result = await db.execute(query)
     classes = result.scalars().all()
-    return success_response(data=[{"id": c.id, "name": c.name, "academic_year_id": c.academic_year_id} for c in classes])
+    
+    classes_data = []
+    for c in classes:
+        # Count students in all sections of this class
+        sec_res = await db.execute(select(Section.id).where(Section.class_id == c.id, Section.is_deleted.is_(False)))
+        sec_ids = sec_res.scalars().all()
+        
+        st_count = 0
+        if sec_ids:
+            count_res = await db.execute(
+                select(func.count(Student.id)).where(
+                    Student.section_id.in_(sec_ids),
+                    Student.is_deleted.is_(False)
+                )
+            )
+            st_count = count_res.scalar() or 0
+        
+        classes_data.append({
+            "id": c.id,
+            "name": c.name,
+            "academic_year_id": c.academic_year_id,
+            "student_count": st_count,
+            "students_count": st_count
+        })
+    return success_response(data=classes_data)
 
 
 @router.get("/academic/sections")
@@ -56,12 +83,32 @@ async def get_sections(
     _: User = Depends(require_permission("students:view"))
 ):
     from app.models.academic import Section
+    from app.models.student import Student
+    from sqlalchemy import func
+
     query = select(Section).where(Section.is_deleted.is_(False))
     if class_id:
         query = query.where(Section.class_id == str(class_id))
     result = await db.execute(query)
     sections = result.scalars().all()
-    return success_response(data=[{"id": s.id, "name": s.name, "class_id": s.class_id} for s in sections])
+    
+    sections_data = []
+    for s in sections:
+        count_res = await db.execute(
+            select(func.count(Student.id)).where(
+                Student.section_id == s.id,
+                Student.is_deleted.is_(False)
+            )
+        )
+        st_count = count_res.scalar() or 0
+        sections_data.append({
+            "id": s.id,
+            "name": s.name,
+            "class_id": s.class_id,
+            "student_count": st_count,
+            "students_count": st_count
+        })
+    return success_response(data=sections_data)
 
 
 # Pydantic Schemas
@@ -207,6 +254,7 @@ async def list_students(
     limit: int = Query(20, ge=1, le=100),
     search: str | None = None,
     section_id: UUID | None = None,
+    class_id: UUID | None = None,
     academic_year_id: UUID | None = None,
     _: User = Depends(require_permission("students:view")),
     db: AsyncSession = Depends(get_db),
@@ -216,11 +264,22 @@ async def list_students(
     count_base = select(Student).where(Student.is_deleted.is_(False))
 
     if section_id:
-        query = query.where(Student.section_id == section_id)
-        count_base = count_base.where(Student.section_id == section_id)
+        query = query.where(Student.section_id == str(section_id))
+        count_base = count_base.where(Student.section_id == str(section_id))
+    elif class_id:
+        from app.models.academic import Section
+        sec_res = await db.execute(select(Section.id).where(Section.class_id == str(class_id), Section.is_deleted.is_(False)))
+        sec_ids = sec_res.scalars().all()
+        if sec_ids:
+            query = query.where(Student.section_id.in_(sec_ids))
+            count_base = count_base.where(Student.section_id.in_(sec_ids))
+        else:
+            query = query.where(Student.id == "__none__")
+            count_base = count_base.where(Student.id == "__none__")
+
     if academic_year_id:
-        query = query.where(Student.academic_year_id == academic_year_id)
-        count_base = count_base.where(Student.academic_year_id == academic_year_id)
+        query = query.where(Student.academic_year_id == str(academic_year_id))
+        count_base = count_base.where(Student.academic_year_id == str(academic_year_id))
     if search:
         like = f"%{search}%"
         query = query.where(

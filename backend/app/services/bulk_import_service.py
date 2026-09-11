@@ -183,6 +183,25 @@ async def execute_generic_bulk_import(
             valid_count += 1
             if extra_kwargs:
                 parsed_attrs.update(extra_kwargs)
+
+            # If Student entity, dynamically resolve section if Class / Section specified in CSV
+            if config.model_class == Student:
+                csv_class = (row.get("Class") or row.get("Class Name") or row.get("Standard") or row.get("Grade") or "").strip()
+                csv_section = (row.get("Section") or row.get("Section Name") or "").strip()
+
+                if csv_class or csv_section:
+                    from app.models.academic import SchoolClass, Section
+                    q_sec = select(Section).join(SchoolClass, Section.class_id == SchoolClass.id).where(Section.is_deleted.is_(False))
+                    if csv_class:
+                        clean_cls = csv_class.lower().replace("class", "").replace("th", "").strip()
+                        q_sec = q_sec.where(SchoolClass.name.ilike(f"%{clean_cls}%"))
+                    if csv_section:
+                        clean_sec = csv_section.lower().replace("section", "").strip()
+                        q_sec = q_sec.where(Section.name.ilike(f"%{clean_sec}%"))
+
+                    matched_sec = (await db.execute(q_sec)).scalars().first()
+                    if matched_sec:
+                        parsed_attrs["section_id"] = matched_sec.id
             
             # If Staff entity, map user_id stub if needed
             if config.model_class == Staff and "user_id" not in parsed_attrs:
