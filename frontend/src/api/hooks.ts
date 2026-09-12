@@ -385,6 +385,36 @@ export function useConvertAdmissionToStudent(admissionId: string) {
   })
 }
 
+export function useGSheetsStatus() {
+  return useQuery({
+    queryKey: ['gsheets-status'],
+    queryFn: async () => {
+      const { data } = await api.get<APIResponse<{
+        configured: boolean
+        client_email: string | null
+        project_id: string | null
+        error: string | null
+        instructions: string
+      }>>('/integrations/gsheets/status')
+      return data.data
+    },
+  })
+}
+
+export function useTestGSheetsConnection() {
+  return useMutation({
+    mutationFn: async (payload: { spreadsheet_id: string }) => {
+      const { data } = await api.post<APIResponse<{
+        spreadsheet_id: string
+        title: string
+        tabs: string[]
+        service_account: string | null
+      }>>('/integrations/gsheets/test', payload)
+      return data
+    },
+  })
+}
+
 export function useSyncToSheets() {
   return useMutation({
     mutationFn: async (payload: { spreadsheet_id: string; module: string }) => {

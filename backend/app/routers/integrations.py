@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import require_permission, success_response
 from app.core.session import get_db
 from app.models import Student, User, FeePayment, FeeStructure, Attendance
-from app.utils.gsheets import write_sheet
+from app.utils.gsheets import (
+    write_sheet,
+    get_service_account_status,
+    test_spreadsheet_connection,
+    extract_spreadsheet_id,
+)
 
 logger = logging.getLogger("educore")
 
@@ -20,13 +25,51 @@ class SyncRequest(BaseModel):
     module: str  # students, fees, attendance
 
 
+class TestConnectionRequest(BaseModel):
+    spreadsheet_id: str
+
+
+@router.get("/gsheets/status")
+async def get_gsheets_status(
+    _: User = Depends(require_permission("settings:read")),
+):
+    """
+    Returns the current configuration status of Google Sheets integration,
+    including service account client email.
+    """
+    status = get_service_account_status()
+    return success_response(data=status, message="Google Sheets integration status retrieved.")
+
+
+@router.post("/gsheets/test")
+async def test_sheets_connection(
+    body: TestConnectionRequest,
+    _: User = Depends(require_permission("settings:read")),
+):
+    """
+    Tests read/access permissions for a given spreadsheet ID/URL.
+    """
+    clean_id = extract_spreadsheet_id(body.spreadsheet_id)
+    if not clean_id:
+        raise HTTPException(status_code=400, detail="Please provide a valid Google Spreadsheet ID or URL.")
+
+    ok, message, metadata = await test_spreadsheet_connection(clean_id)
+    if not ok:
+        raise HTTPException(status_code=400, detail=message)
+
+    return success_response(data=metadata, message=message)
+
+
 @router.post("/gsheets/sync")
 async def sync_to_sheets(
     body: SyncRequest,
     _: User = Depends(require_permission("settings:edit")),
     db: AsyncSession = Depends(get_db)
 ):
-    spreadsheet_id = body.spreadsheet_id
+    spreadsheet_id = extract_spreadsheet_id(body.spreadsheet_id)
+    if not spreadsheet_id:
+        raise HTTPException(status_code=400, detail="Please provide a valid Google Spreadsheet ID or URL.")
+
     module = body.module.lower()
 
     if module == "students":
@@ -49,11 +92,14 @@ async def sync_to_sheets(
             ])
         
         values = headers + rows
-        success = await write_sheet(spreadsheet_id, "Students!A1:H", values)
+        success, error_msg = await write_sheet(spreadsheet_id, "Students!A1:H", values)
         if not success:
-            raise HTTPException(status_code=500, detail="Google Sheets update failed. Please check spreadsheet ID and permissions.")
+            raise HTTPException(status_code=400, detail=error_msg or "Failed to write students to Google Sheets.")
         
-        return success_response(message="Students successfully synchronized to Google Sheets!")
+        return success_response(
+            data={"synced_count": len(rows), "tab": "Students"},
+            message=f"Successfully synchronized {len(rows)} students to Google Sheets tab 'Students'!"
+        )
 
     elif module == "fees":
         # Fetch fee payments joined with student & structure names
@@ -78,11 +124,14 @@ async def sync_to_sheets(
             ])
             
         values = headers + rows
-        success = await write_sheet(spreadsheet_id, "Fees!A1:E", values)
+        success, error_msg = await write_sheet(spreadsheet_id, "Fees!A1:E", values)
         if not success:
-            raise HTTPException(status_code=500, detail="Google Sheets update failed. Please check spreadsheet ID and permissions.")
+            raise HTTPException(status_code=400, detail=error_msg or "Failed to write fees to Google Sheets.")
         
-        return success_response(message="Fee payments successfully synchronized to Google Sheets!")
+        return success_response(
+            data={"synced_count": len(rows), "tab": "Fees"},
+            message=f"Successfully synchronized {len(rows)} fee payments to Google Sheets tab 'Fees'!"
+        )
 
     elif module == "attendance":
         # Fetch attendance summaries joined with student names
@@ -104,11 +153,14 @@ async def sync_to_sheets(
             ])
             
         values = headers + rows
-        success = await write_sheet(spreadsheet_id, "Attendance!A1:C", values)
+        success, error_msg = await write_sheet(spreadsheet_id, "Attendance!A1:C", values)
         if not success:
-            raise HTTPException(status_code=500, detail="Google Sheets update failed. Please check spreadsheet ID and permissions.")
+            raise HTTPException(status_code=400, detail=error_msg or "Failed to write attendance to Google Sheets.")
         
-        return success_response(message="Attendance summaries successfully synchronized to Google Sheets!")
+        return success_response(
+            data={"synced_count": len(rows), "tab": "Attendance"},
+            message=f"Successfully synchronized {len(rows)} attendance records to Google Sheets tab 'Attendance'!"
+        )
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported synchronization module: {module}")

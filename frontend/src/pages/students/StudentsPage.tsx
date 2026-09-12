@@ -317,14 +317,18 @@ export function StudentsPage() {
       toast.error('Please select a section for the imported students.')
       return
     }
-    if (!sheetSpreadsheetId.trim()) {
+    const rawId = sheetSpreadsheetId.trim()
+    if (!rawId) {
       toast.error('Please provide the Google Sheets spreadsheet ID.')
       return
     }
 
+    const match = rawId.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)
+    const cleanId = match && match[1] ? match[1] : rawId.replace(/^['"]|['"]$/g, '')
+
     try {
       const res = await importFromSheetsMutation.mutateAsync({
-        spreadsheetId: sheetSpreadsheetId.trim(),
+        spreadsheetId: cleanId,
         rangeName: sheetRangeName.trim() || 'Sheet1!A:Z',
         academicYearId: selectedAcademicYear,
         sectionId: entrySectionId,

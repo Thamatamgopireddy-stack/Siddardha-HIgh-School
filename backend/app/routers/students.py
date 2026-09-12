@@ -14,8 +14,7 @@ from app.core.dependencies import require_permission, success_response
 from app.core.enums import Category, Gender, UserRole
 from app.core.session import get_db
 from app.models import Student, StudentDocument, User, AuditLog, AcademicYear, Section
-from app.core.security import hash_password
-from app.utils.gsheets import read_sheet
+from app.utils.gsheets import read_sheet, extract_spreadsheet_id
 from app.utils.storage import upload_file
 
 logger = logging.getLogger("educore")
@@ -385,9 +384,15 @@ async def import_from_google_sheets(
     _: User = Depends(require_permission("students:create")),
     db: AsyncSession = Depends(get_db),
 ):
-    rows = await read_sheet(body.spreadsheet_id, body.range_name)
-    if not rows:
-        raise HTTPException(status_code=400, detail="No rows were returned from Google Sheets. Check the spreadsheet ID, range, and permissions.")
+    spreadsheet_id = extract_spreadsheet_id(body.spreadsheet_id)
+    if not spreadsheet_id:
+        raise HTTPException(status_code=400, detail="Please provide a valid Google Spreadsheet ID or URL.")
+
+    rows, error_msg = await read_sheet(spreadsheet_id, body.range_name)
+    if error_msg:
+        raise HTTPException(status_code=400, detail=error_msg)
+    if not rows or len(rows) < 2:
+        raise HTTPException(status_code=400, detail="No data rows were found in the specified Google Sheet range. Ensure headers and data rows exist.")
 
     headers = [_normalize_header(h) for h in rows[0]]
     imported_count = 0
