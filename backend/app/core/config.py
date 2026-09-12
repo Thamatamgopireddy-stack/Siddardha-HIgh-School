@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     FRONTEND_URL: str = "http://localhost:5173"
     CORS_ORIGINS: str = "http://localhost:5173"
-    SCHOOL_NAME: str = "Greenfield International School"
+    SCHOOL_NAME: str = "Siddardha High School"
     SCHOOL_BOARD: str = "CBSE"
     AWS_S3_BUCKET: str = ""
     AWS_ACCESS_KEY_ID: str = ""

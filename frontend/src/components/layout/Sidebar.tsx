@@ -92,7 +92,7 @@ export function Sidebar() {
     return (
       <aside className={cn('flex h-full flex-col bg-sidebar text-white transition-all', collapsed ? 'w-16' : 'w-64')}>
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
-          {!collapsed && <span className="font-semibold">EduCore ERP</span>}
+          {!collapsed && <span className="font-semibold">Siddardha High School</span>}
           <button onClick={toggle} className="rounded p-1 hover:bg-white/10"><ChevronLeft className={cn('h-5 w-5 transition', collapsed && 'rotate-180')} /></button>
         </div>
         <nav className="flex-1 space-y-1 p-3">
@@ -107,8 +107,8 @@ export function Sidebar() {
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
         {!collapsed && (
           <div>
-            <p className="text-xs text-slate-400">Greenfield International</p>
-            <p className="font-semibold">EduCore ERP</p>
+            <p className="text-xs text-slate-400">School ERP</p>
+            <p className="font-semibold text-sm">Siddardha High School</p>
           </div>
         )}
         <button onClick={toggle} className="rounded p-1 hover:bg-white/10"><ChevronLeft className={cn('h-5 w-5 transition', collapsed && 'rotate-180')} /></button>

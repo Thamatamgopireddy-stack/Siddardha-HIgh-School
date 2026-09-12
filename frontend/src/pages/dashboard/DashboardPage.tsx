@@ -39,7 +39,7 @@ const activities = [
 function AiAssistantCard() {
   const [prompt, setPrompt] = useState('')
   const [messages, setMessages] = useState<{ sender: 'user' | 'ai'; text: string }[]>([
-    { sender: 'ai', text: 'Hello! I am your EduCore Assistant. Ask me anything about student SIS promotions, fee structures, or attendance SMS alerts!' },
+    { sender: 'ai', text: 'Hello! I am your Siddardha High School Assistant. Ask me anything about student SIS promotions, fee structures, or attendance SMS alerts!' },
   ])
 
   const chatMutation = useAIChat()

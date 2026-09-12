@@ -13,7 +13,7 @@ export function LoginPage() {
     e.preventDefault()
     try {
       await login.mutateAsync({ email_or_phone: email, password })
-      toast.success('Welcome to EduCore ERP')
+      toast.success('Welcome to Siddardha High School ERP')
       navigate('/dashboard')
     } catch (error: any) {
       const detail = error?.response?.data?.detail || error?.response?.data?.error?.message || error?.response?.data?.message || 'Invalid credentials'
@@ -26,9 +26,9 @@ export function LoginPage() {
       <Toaster position="top-right" />
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-md dark:bg-slate-900">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">E</div>
-          <h1 className="text-2xl font-semibold text-primary">EduCore ERP</h1>
-          <p className="mt-1 text-sm text-slate-500">Greenfield International School · CBSE</p>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">S</div>
+          <h1 className="text-2xl font-semibold text-primary">Siddardha High School</h1>
+          <p className="mt-1 text-sm text-slate-500">Siddardha High School ERP Portal</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title="SRI RAGAVENDRA HIGH SCHOOL", version=settings.APP_VERSION, lifespan=lifespan)
+app = FastAPI(title="Siddardha High School", version=settings.APP_VERSION, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
