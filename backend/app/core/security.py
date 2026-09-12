@@ -7,6 +7,8 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
+import bcrypt
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
@@ -16,11 +18,25 @@ PASSWORD_PATTERN = re.compile(
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    if not plain or not hashed:
+        return False
+    try:
+        # Direct bcrypt check
+        if hashed.startswith("$2b$") or hashed.startswith("$2a$") or hashed.startswith("$2y$"):
+            return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+        return pwd_context.verify(plain, hashed)
+    except Exception:
+        try:
+            return pwd_context.verify(plain, hashed)
+        except Exception:
+            return False
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    try:
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    except Exception:
+        return pwd_context.hash(password)
 
 
 def validate_password_strength(password: str) -> bool:

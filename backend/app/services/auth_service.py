@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import UserRole
@@ -57,9 +57,13 @@ class AuthService:
         self.db = db
 
     async def authenticate(self, email_or_phone: str, password: str) -> tuple[User, str, str]:
+        clean_input = (email_or_phone or "").strip()
         result = await self.db.execute(
             select(User).where(
-                or_(User.email == email_or_phone, User.phone == email_or_phone),
+                or_(
+                    func.lower(User.email) == clean_input.lower(),
+                    User.phone == clean_input
+                ),
                 User.is_deleted.is_(False),
             )
         )
